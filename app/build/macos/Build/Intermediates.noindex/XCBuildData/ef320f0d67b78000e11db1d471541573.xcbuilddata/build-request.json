@@ -1,0 +1,65 @@
+{
+  "buildCommand" : {
+    "command" : "build",
+    "skipDependencies" : false,
+    "style" : "buildOnly"
+  },
+  "configuredTargets" : [
+    {
+      "guid" : "18c1723432283e0cc55f10a6dcfd9e02a26d6e580d3222b86d62fb80ec380c14"
+    }
+  ],
+  "containerPath" : "/Users/yimisheng/Desktop/AAAucl-2025/T2_1_ucl/casa0021/GPP_May02/macos/Runner.xcworkspace",
+  "continueBuildingAfterErrors" : false,
+  "dependencyScope" : "workspace",
+  "enableIndexBuildArena" : false,
+  "hideShellScriptEnvironment" : false,
+  "parameters" : {
+    "action" : "build",
+    "activeArchitecture" : "arm64",
+    "activeRunDestination" : {
+      "disableOnlyActiveArch" : false,
+      "platform" : "macosx",
+      "sdk" : "macosx26.1",
+      "sdkVariant" : "macos",
+      "supportedArchitectures" : [
+        "arm64e",
+        "arm64",
+        "x86_64"
+      ],
+      "targetArchitecture" : "arm64"
+    },
+    "arenaInfo" : {
+      "buildIntermediatesPath" : "/Users/yimisheng/Desktop/AAAucl-2025/T2_1_ucl/casa0021/GPP_May02/build/macos/Build/Intermediates.noindex",
+      "buildProductsPath" : "/Users/yimisheng/Desktop/AAAucl-2025/T2_1_ucl/casa0021/GPP_May02/build/macos/Build/Products",
+      "derivedDataPath" : "/Users/yimisheng/Desktop/AAAucl-2025/T2_1_ucl/casa0021/GPP_May02/build/macos",
+      "indexDataStoreFolderPath" : "/Users/yimisheng/Desktop/AAAucl-2025/T2_1_ucl/casa0021/GPP_May02/build/macos/Index.noindex/DataStore",
+      "indexEnableDataStore" : true,
+      "indexPCHPath" : "/Users/yimisheng/Desktop/AAAucl-2025/T2_1_ucl/casa0021/GPP_May02/build/macos/Index.noindex/PrecompiledHeaders",
+      "pchPath" : "/Users/yimisheng/Desktop/AAAucl-2025/T2_1_ucl/casa0021/GPP_May02/build/macos/Build/Intermediates.noindex/PrecompiledHeaders"
+    },
+    "configurationName" : "Debug",
+    "overrides" : {
+      "commandLine" : {
+        "table" : {
+          "COMPILER_INDEX_STORE_ENABLE" : "NO",
+          "OBJROOT" : "/Users/yimisheng/Desktop/AAAucl-2025/T2_1_ucl/casa0021/GPP_May02/build/macos/Build/Intermediates.noindex",
+          "SYMROOT" : "/Users/yimisheng/Desktop/AAAucl-2025/T2_1_ucl/casa0021/GPP_May02/build/macos/Build/Products"
+        }
+      },
+      "synthesized" : {
+        "table" : {
+          "ACTION" : "build",
+          "ENABLE_PREVIEWS" : "NO",
+          "ENABLE_XOJIT_PREVIEWS" : "YES"
+        }
+      }
+    }
+  },
+  "schemeCommand" : "launch",
+  "showNonLoggedProgress" : true,
+  "useDryRun" : false,
+  "useImplicitDependencies" : true,
+  "useLegacyBuildLocations" : false,
+  "useParallelTargets" : true
+}
