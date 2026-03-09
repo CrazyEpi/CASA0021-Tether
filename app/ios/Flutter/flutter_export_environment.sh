@@ -1,7 +1,7 @@
 #!/bin/sh
 # This is a generated file; do not edit or check into version control.
-export "FLUTTER_ROOT=/Users/yimisheng/VScode2026/flutter"
-export "FLUTTER_APPLICATION_PATH=/Users/yimisheng/Desktop/AAAucl-2025/T2_1_ucl/casa0021/GPP_May02"
+export "FLUTTER_ROOT=/opt/homebrew/share/flutter"
+export "FLUTTER_APPLICATION_PATH=/Users/gilangpamungkas/Documents/Git_Repository/CASA0021-Tether/app"
 export "COCOAPODS_PARALLEL_CODE_SIGN=true"
 export "FLUTTER_TARGET=lib/main.dart"
 export "FLUTTER_BUILD_DIR=build"

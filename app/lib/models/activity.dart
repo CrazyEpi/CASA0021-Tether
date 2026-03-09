@@ -1,3 +1,5 @@
+// lib/models/activity.dart
+
 // Activity model - represents a single exercise session
 class Activity {
   final String id;
@@ -45,7 +47,6 @@ class Activity {
   }
 
   String get formattedPace {
-    // minutes per km
     if (distanceKm == 0) return '--:--';
     final paceSeconds = (durationSeconds / distanceKm).round();
     final paceMin = paceSeconds ~/ 60;
@@ -55,21 +56,31 @@ class Activity {
 
   String get typeIcon {
     switch (type) {
-      case 'run': return '🏃';
-      case 'cycle': return '🚴';
-      case 'walk': return '🚶';
-      case 'hike': return '🥾';
-      default: return '🏃';
+      case 'run':
+        return '🏃';
+      case 'cycle':
+        return '🚴';
+      case 'walk':
+        return '🚶';
+      case 'hike':
+        return '🥾';
+      default:
+        return '🏃';
     }
   }
 
   String get typeLabel {
     switch (type) {
-      case 'run': return 'Run';
-      case 'cycle': return 'Cycling';
-      case 'walk': return 'Walk';
-      case 'hike': return 'Hike';
-      default: return 'Activity';
+      case 'run':
+        return 'Run';
+      case 'cycle':
+        return 'Cycling';
+      case 'walk':
+        return 'Walk';
+      case 'hike':
+        return 'Hike';
+      default:
+        return 'Activity';
     }
   }
 
@@ -89,10 +100,12 @@ class Activity {
       'title': title,
       'description': description,
       'kudos': kudos,
+      'route': route.map((p) => p.toMap()).toList(), // include GPS points
     };
   }
 }
 
+// ===== GpsPoint =====
 class GpsPoint {
   final double lat;
   final double lng;
@@ -123,5 +136,28 @@ class GpsPoint {
 
   String toPayload() {
     return '${lat.toStringAsFixed(6)},${lng.toStringAsFixed(6)},${speed.toStringAsFixed(1)},${totalDistance.toStringAsFixed(1)}';
+  }
+
+  // 🔹 Add this to send to Firestore
+  Map<String, dynamic> toMap() {
+    return {
+      'lat': lat,
+      'lng': lng,
+      'speed': speed,
+      'totalDistance': totalDistance,
+      'timestamp': timestamp.toIso8601String(),
+    };
+  }
+
+  factory GpsPoint.fromMap(Map<String, dynamic> map) {
+    return GpsPoint(
+      lat: map['lat'] ?? 0.0,
+      lng: map['lng'] ?? 0.0,
+      speed: map['speed'] ?? 0.0,
+      totalDistance: map['totalDistance'] ?? 0.0,
+      timestamp: map.containsKey('timestamp')
+          ? DateTime.parse(map['timestamp'])
+          : DateTime.now(),
+    );
   }
 }
