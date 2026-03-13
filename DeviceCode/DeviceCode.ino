@@ -1,5 +1,4 @@
 #include <ArduinoBLE.h>
-#include <TinyGPS++.h>
 #include <Adafruit_NeoPixel.h>
 #include <lvgl.h>
 #include "Arduino_GFX_Library.h"
@@ -11,12 +10,9 @@
 // Pin Config
 #define LED_PIN    16   
 #define NUMPIXELS  24   
-#define GPS_RXD    44   
-#define GPS_TXD    43   
 #define BOOT_PIN   0
 
 Adafruit_NeoPixel pixels(NUMPIXELS, LED_PIN, NEO_GRB + NEO_KHZ800);
-TinyGPSPlus gps;
 XPowersPMU power;
 TouchDrvCST92xx touch;
 
@@ -26,11 +22,9 @@ Arduino_CO5300 *gfx = new Arduino_CO5300(bus, LCD_RESET, 0, LCD_WIDTH, LCD_HEIGH
 static lv_disp_draw_buf_t draw_buf;
 static lv_color_t buf[LCD_WIDTH * LCD_HEIGHT / 10];
 
-// Bluetooth "Service" and "Characteristic" UUID
-// Service ID: bluetooth function id for connection
-// Characteristic ID: detailed function id for functions like location update
-// Make sure phone and device share same UUID
+// Bluetooth UUID
 const char* BLE_SERVICE_UUID       = "19B10000-E8F2-537E-4F6C-D104768A1214";
+// 注意：locationChar 的作用已变更为从手机接收数据
 const char* BLE_LOCATION_CHAR_UUID = "19B10001-E8F2-537E-4F6C-D104768A1214"; 
 const char* BLE_GOAL_CHAR_UUID     = "19B10002-E8F2-537E-4F6C-D104768A1214"; 
 const char* BLE_TIME_CHAR_UUID     = "19B10003-E8F2-537E-4F6C-D104768A1214"; 
@@ -38,19 +32,20 @@ const char* BLE_FRIEND_CHAR_UUID   = "19B10004-E8F2-537E-4F6C-D104768A1214";
 const char* BLE_SOS_CHAR_UUID      = "19B10005-E8F2-537E-4F6C-D104768A1214";
 
 BLEService bikeService(BLE_SERVICE_UUID);
-BLEStringCharacteristic locationChar(BLE_LOCATION_CHAR_UUID, BLERead | BLENotify, 50);
+// 权限更改为 BLEWrite，允许 App 写入当前速度和距离
+BLEStringCharacteristic locationChar(BLE_LOCATION_CHAR_UUID, BLERead | BLEWrite, 50);
 BLEFloatCharacteristic goalChar(BLE_GOAL_CHAR_UUID, BLERead | BLEWrite); 
 BLEStringCharacteristic timeChar(BLE_TIME_CHAR_UUID, BLERead | BLEWrite, 10);
 BLEIntCharacteristic friendChar(BLE_FRIEND_CHAR_UUID, BLERead | BLEWrite);
-BLEByteCharacteristic sosChar(BLE_SOS_CHAR_UUID, BLERead | BLENotify); // 0=normal, 1=enmergency
+BLEByteCharacteristic sosChar(BLE_SOS_CHAR_UUID, BLERead | BLENotify);
 
 // default data
 double totalDistance = 0.0, targetDistance = 5000.0;
-double lastLat = 0.0, lastLon = 0.0;
+float currentSpeed = 0.0;
 int onlineFriends = 0;
 char currentTime[16] = "--:--"; 
-bool hasGPSFixed = false;
-unsigned long gpsFixedTimestamp = 0;
+bool isPhoneConnected = false;
+unsigned long connectionTimestamp = 0;
 
 bool isScreenOn = true;
 bool isEmergency = false;
@@ -86,18 +81,15 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data) {
   }
 }
 
-//timer for LVGL refresh
-void example_increase_lvgl_tick(void *arg) {
-  lv_tick_inc(2); 
-}
+void example_increase_lvgl_tick(void *arg) { lv_tick_inc(2); }
 
 // SOS long press cancle
 void sos_clear_event_cb(lv_event_t * e) {
   if (isEmergency) {
     isEmergency = false;
-    lv_obj_add_flag(sos_container, LV_OBJ_FLAG_HIDDEN); // hide emergency screen
+    lv_obj_add_flag(sos_container, LV_OBJ_FLAG_HIDDEN); 
     sosChar.writeValue((uint8_t)0);
-    Serial.println("Enmergency Calcled！");
+    Serial.println("Emergency Canceled!");
   }
 }
 
@@ -105,7 +97,6 @@ void sos_clear_event_cb(lv_event_t * e) {
 void init_bike_dashboard() {
   lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0x000000), LV_PART_MAIN);
 
-  //speed
   label_speed = lv_label_create(lv_scr_act());
   lv_obj_set_style_text_color(label_speed, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
   lv_obj_set_style_text_font(label_speed, &lv_font_montserrat_48, LV_PART_MAIN); 
@@ -113,28 +104,24 @@ void init_bike_dashboard() {
   lv_obj_set_style_text_align(label_speed, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
   lv_obj_align(label_speed, LV_ALIGN_CENTER, 0, -10);
 
-  //Time + GPS Status
   label_gps = lv_label_create(lv_scr_act());
   lv_obj_set_style_text_color(label_gps, lv_color_hex(0xAAAAAA), LV_PART_MAIN);
   lv_obj_set_style_text_font(label_gps, &lv_font_montserrat_24, LV_PART_MAIN);
-  lv_label_set_text(label_gps, "--:-- | Searching...");
+  lv_label_set_text(label_gps, "--:-- | Waiting App...");
   lv_obj_align(label_gps, LV_ALIGN_TOP_MID, 0, 40); 
 
-  //Friend Status
   label_friends = lv_label_create(lv_scr_act());
   lv_obj_set_style_text_color(label_friends, lv_color_hex(0x00FFFF), LV_PART_MAIN);
   lv_obj_set_style_text_font(label_friends, &lv_font_montserrat_24, LV_PART_MAIN);
   lv_label_set_text(label_friends, ""); 
   lv_obj_align(label_friends, LV_ALIGN_BOTTOM_MID, 0, -80);
   
-  //Battery Info
   label_battery = lv_label_create(lv_scr_act());
   lv_obj_set_style_text_color(label_battery, lv_color_hex(0x00FF00), LV_PART_MAIN);
   lv_obj_set_style_text_font(label_battery, &lv_font_montserrat_24, LV_PART_MAIN);
   lv_label_set_text(label_battery, "BAT: --%");
   lv_obj_align(label_battery, LV_ALIGN_BOTTOM_MID, 0, -40);
 
-  //SOS
   sos_container = lv_obj_create(lv_scr_act());
   lv_obj_set_size(sos_container, LCD_WIDTH, LCD_HEIGHT);
   lv_obj_set_style_bg_color(sos_container, lv_color_hex(0xAA0000), 0);
@@ -143,7 +130,6 @@ void init_bike_dashboard() {
   lv_obj_add_flag(sos_container, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_add_flag(sos_container, LV_OBJ_FLAG_HIDDEN);
   
-  //Long press
   lv_obj_add_event_cb(sos_container, sos_clear_event_cb, LV_EVENT_LONG_PRESSED, NULL);
 
   lv_obj_t *sos_label = lv_label_create(sos_container);
@@ -159,22 +145,17 @@ void setup() {
   unsigned long startWait = millis();
   while (!Serial && millis() - startWait < 3000) { delay(10); }
 
-  Serial.println("\n--- Bike Tracker Started ---");
+  Serial.println("\n--- Bike Tracker Started (Phone GPS Mode) ---");
 
   pinMode(BOOT_PIN, INPUT_PULLUP);
 
-  Serial1.begin(115200, SERIAL_8N1, GPS_RXD, GPS_TXD);
-
   Wire.begin(IIC_SDA, IIC_SCL);
-  //Initialize Battery Control
   if(power.begin(Wire, AXP2101_SLAVE_ADDRESS, IIC_SDA, IIC_SCL)) {
     power.clearIrqStatus(); 
     power.enableBattVoltageMeasure();
-    // power button screen off
     power.enableIRQ(XPOWERS_AXP2101_PKEY_SHORT_IRQ);
   }
 
-  //Initialize touch screen
   touch.setPins(TP_RESET, TP_INT);
   if(!touch.begin(Wire, 0x5A, IIC_SDA, IIC_SCL)) {
      Serial.println("Warning: Touch not found!");
@@ -183,12 +164,10 @@ void setup() {
      touch.setMirrorXY(true, true);
   }
 
-  // Display Setups
   gfx->begin();
   gfx->setBrightness(90);
   lv_init();
   
-  //Initialize LVGL Library
   lv_disp_draw_buf_init(&draw_buf, buf, NULL, LCD_WIDTH * LCD_HEIGHT / 10);
   
   static lv_disp_drv_t disp_drv;
@@ -197,7 +176,6 @@ void setup() {
   disp_drv.flush_cb = my_disp_flush; disp_drv.draw_buf = &draw_buf;
   lv_disp_drv_register(&disp_drv);
 
-  // touch screen registration
   static lv_indev_drv_t indev_drv;
   lv_indev_drv_init(&indev_drv);
   indev_drv.type = LV_INDEV_TYPE_POINTER;
@@ -211,13 +189,11 @@ void setup() {
 
   init_bike_dashboard();
   
-  //NeoPixel Settings
   pixels.begin();
-  pixels.setBrightness(50); //Brightness
+  pixels.setBrightness(50); 
   pixels.clear(); 
   pixels.show();
   
-  //Delay for battery then start bluetooth
   delay(300); 
 
   if (!BLE.begin()) { Serial.println("BLE Failed!"); while (1); }
@@ -227,27 +203,26 @@ void setup() {
   bikeService.addCharacteristic(goalChar);
   bikeService.addCharacteristic(timeChar);
   bikeService.addCharacteristic(friendChar);
-  bikeService.addCharacteristic(sosChar); // 注册 SOS
+  bikeService.addCharacteristic(sosChar); 
   BLE.addService(bikeService);
   
-  sosChar.writeValue((uint8_t)0); // 初始化为安全状态
+  sosChar.writeValue((uint8_t)0); 
   BLE.advertise();
-  Serial.println("System Ready. Advertising BLE...");
+  Serial.println("System Ready. Waiting for App to connect...");
 }
 
 void loop() {
   BLEDevice central = BLE.central();
   
-  //power button screen off
+  // 1. 电源键息屏
   power.getIrqStatus();
   if (power.isPekeyShortPressIrq()) {
     isScreenOn = !isScreenOn;
     gfx->setBrightness(isScreenOn ? 90 : 0);
-    Serial.println(isScreenOn ? "Screen Wake" : "Screen Off");
     power.clearIrqStatus();
   }
 
-  // Boot long press SOS
+  // 2. BOOT 长按 SOS
   static unsigned long bootPressTime = 0;
   static bool bootPressed = false;
   
@@ -256,24 +231,28 @@ void loop() {
       bootPressed = true;
       bootPressTime = millis();
     } else if (millis() - bootPressTime > 3000 && !isEmergency) {
-      // 3s = SOS
       isEmergency = true;
-      lv_obj_clear_flag(sos_container, LV_OBJ_FLAG_HIDDEN); // Emergency Screen
-      sosChar.writeValue((uint8_t)1); // App notification
-      
-      // If screen is off, wake it
+      lv_obj_clear_flag(sos_container, LV_OBJ_FLAG_HIDDEN); 
+      sosChar.writeValue((uint8_t)1); 
       if (!isScreenOn) {
         isScreenOn = true;
         gfx->setBrightness(90);
       }
-      Serial.println("SOS Alert");
+      Serial.println("SOS Alert Sent to App!");
     }
   } else {
     bootPressed = false;
   }
 
-  // bluetooth functions
+  // 3. 蓝牙数据解析 (现在位置数据由手机 App 提供)
   if (central && central.connected()) {
+    
+    // 如果是刚连接上，记录时间用于绿灯提示
+    if (!isPhoneConnected) {
+      isPhoneConnected = true;
+      connectionTimestamp = millis();
+    }
+
     if (goalChar.written()) targetDistance = goalChar.value();
     
     if (timeChar.written()) {
@@ -290,50 +269,40 @@ void loop() {
         lv_label_set_text(label_friends, ""); 
       }
     }
-  }
 
-  // gps data handling
-  while (Serial1.available() > 0) {
-    if (gps.encode(Serial1.read())) {
-      if (gps.location.isValid() && gps.location.isUpdated()) {
-        double currentLat = gps.location.lat();
-        double currentLon = gps.location.lng();
-        if (lastLat == 0.0 && lastLon == 0.0) {
-          lastLat = currentLat; lastLon = currentLon;
-        } else {
-          double stepDistance = TinyGPSPlus::distanceBetween(currentLat, currentLon, lastLat, lastLon);
-          if (stepDistance > 2.0) { 
-            totalDistance += stepDistance;
-            lastLat = currentLat; lastLon = currentLon;
-          }
-        }
+    // --- 核心改动：解析手机发来的 GPS 数据 ---
+    // 假设手机发来的字符串格式为: "速度,距离" (例如: "15.2,1250.5")
+    if (locationChar.written()) {
+      String locStr = locationChar.value();
+      int commaIndex = locStr.indexOf(',');
+      if (commaIndex > 0) {
+        currentSpeed = locStr.substring(0, commaIndex).toFloat();
+        totalDistance = locStr.substring(commaIndex + 1).toFloat();
       }
     }
+  } else {
+    // 如果手机断开连接，状态重置
+    isPhoneConnected = false;
+    currentSpeed = 0.0;
   }
 
-  // UI refresh 10hz
+  // 4. UI 与灯光刷新逻辑
   static unsigned long lastUIUpdate = 0;
   if (millis() - lastUIUpdate > 100) {
     lastUIUpdate = millis();
 
-    //Update Battery Percentage
     if (power.isBatteryConnect()) {
       lv_label_set_text_fmt(label_battery, "BAT: %d%%", power.getBatteryPercent());
     }
 
-    //Update GPS, Speed, LED
-    if (gps.location.isValid()) {
-      if (!hasGPSFixed) {
-        hasGPSFixed = true;
-        gpsFixedTimestamp = millis();  //record timestamp for first recorded location
-      }
+    // --- 状态显示更新 ---
+    if (isPhoneConnected) {
+      lv_label_set_text_fmt(label_gps, "%s | App Connected", currentTime);
+      lv_label_set_text_fmt(label_speed, "%.1f\nkm/h", currentSpeed);
 
-      lv_label_set_text_fmt(label_gps, "%s | 3D Fix", currentTime);
-      lv_label_set_text_fmt(label_speed, "%.1f\nkm/h", gps.speed.kmph());
-
-      //GPS Connection good, all green for 3s, blue ring for distance
       if (!isEmergency) {
-        if (millis() - gpsFixedTimestamp < 3000) {
+        // 连接成功的前 3 秒亮绿灯，之后亮蓝色进度条
+        if (millis() - connectionTimestamp < 3000) {
           pixels.fill(pixels.Color(0, 150, 0)); 
           pixels.show();
         } else {
@@ -341,13 +310,13 @@ void loop() {
         }
       }
     } else {
-      hasGPSFixed = false;
-      lv_label_set_text_fmt(label_gps, "%s | Searching...", currentTime);
+      // 手机断开连接时的显示
+      lv_label_set_text_fmt(label_gps, "%s | Waiting App...", currentTime);
       lv_label_set_text(label_speed, "0.0\nkm/h");
       if (!isEmergency) updateLED_Searching_Yellow();
     }
     
-    // Emergency Blink Red
+    // 紧急状态红灯闪烁覆盖
     if (isEmergency) {
        if ((millis() / 300) % 2 == 0) {
           pixels.fill(pixels.Color(200, 0, 0));
@@ -355,18 +324,6 @@ void loop() {
           pixels.clear();
        }
        pixels.show();
-    }
-  }
-
-  // Send Location
-  static unsigned long lastBLEPush = 0;
-  if (millis() - lastBLEPush > 2000) {
-    lastBLEPush = millis();
-    if (gps.location.isValid() && central && central.connected()) {
-      char payload[64];
-      snprintf(payload, sizeof(payload), "%.6f,%.6f,%.1f,%.1f", 
-               gps.location.lat(), gps.location.lng(), gps.speed.kmph(), totalDistance);
-      locationChar.writeValue(payload);
     }
   }
 
