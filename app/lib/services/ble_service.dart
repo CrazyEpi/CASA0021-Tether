@@ -1,233 +1,299 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
-import 'package:flutter/material.dart';
-import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:location/location.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_database/firebase_database.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../firebase_options.dart';
 
-class BLEService extends ChangeNotifier {
-  // ===== BLE & Firebase =====
-  final flutterReactiveBle = FlutterReactiveBle();
-  DiscoveredDevice? device;
-  StreamSubscription<DiscoveredDevice>? _scanSubscription;
-  StreamSubscription<ConnectionStateUpdate>? _connectionSubscription;
-  final Map<String, StreamSubscription<List<int>>> _charSubscriptions = {};
-  final DatabaseReference database =
-      FirebaseDatabase.instance.ref("bike_tracker");
+// ============================================================
+// Bluetooth LE Service
+// Connects to BikeTracker_E device and exchanges data per spec:
+//
+// Service: 19B10000-E8F2-537E-4F6C-D104768A1214
+//
+// Phone → Device (Write):
+//   19B10001  "speed_kmh,distance_m"  e.g. "15.2,1250.5"
+//   19B10002  Float32 LE  goal in metres
+//   19B10003  "HH:MM"     current time
+//   19B10004  Int32 LE    online-friends count
+//
+// Device → Phone (Notify):
+//   19B10005  0x01 = SOS triggered, 0x00 = SOS cleared
+// ============================================================
 
-  String status = "Idle";
-  double latitude = 0.0;
-  double longitude = 0.0;
-  double speed = 0.0;
-  double distance = 0.0;
-  double progress = 0.0;
+enum BleStatus { disconnected, scanning, connecting, connected, error }
 
-  double targetDistance = 10.0; // Default goal
+class BleService {
+  // ── UUIDs ──────────────────────────────────────────────────────────────────
+  static const String _serviceUuid  = '19b10000-e8f2-537e-4f6c-d104768a1214';
+  static const String _charSpeed    = '19b10001-e8f2-537e-4f6c-d104768a1214';
+  static const String _charGoal     = '19b10002-e8f2-537e-4f6c-d104768a1214';
+  static const String _charTime     = '19b10003-e8f2-537e-4f6c-d104768a1214';
+  static const String _charFriends  = '19b10004-e8f2-537e-4f6c-d104768a1214';
+  static const String _charSos      = '19b10005-e8f2-537e-4f6c-d104768a1214';
 
-  final String serviceUuid = "19B10000-E8F2-537E-4F6C-D104768A1214";
-  final Map<String, String> characteristicUuids = {
-    "Latitude": "19B10001-E8F2-537E-4F6C-D104768A1214",
-    "Longitude": "19B10002-E8F2-537E-4F6C-D104768A1214",
-    "Speed": "19B10003-E8F2-537E-4F6C-D104768A1214",
-    "Distance": "19B10004-E8F2-537E-4F6C-D104768A1214",
-    "Progress": "19B10005-E8F2-537E-4F6C-D104768A1214",
-  };
+  static const String deviceName    = 'BikeTracker_E';
 
-  // ===== BLE Values =====
-  final Map<String, double> bleValues = {
-    "Latitude": 0.0,
-    "Longitude": 0.0,
-    "Speed": 0.0,
-    "Distance": 0.0,
-    "Progress": 0.0,
-  };
+  // ── State ──────────────────────────────────────────────────────────────────
+  BluetoothDevice? _device;
+  BleStatus _status = BleStatus.disconnected;
 
-  Timer? uploadTimer;
+  BluetoothCharacteristic? _cSpeed;
+  BluetoothCharacteristic? _cGoal;
+  BluetoothCharacteristic? _cTime;
+  BluetoothCharacteristic? _cFriends;
+  BluetoothCharacteristic? _cSos;
 
-  double lastLat = 0.0;
-  double lastLon = 0.0;
+  StreamSubscription? _scanSub;
+  StreamSubscription? _connSub;
+  StreamSubscription? _sosSub;
 
-  // ================= INIT =================
-  Future<void> initialize() async {
-    await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform);
+  // ── Streams ────────────────────────────────────────────────────────────────
+  final _statusCtrl = StreamController<BleStatus>.broadcast();
+  final _sosCtrl    = StreamController<bool>.broadcast();
+  final _logCtrl    = StreamController<String>.broadcast();
 
-    // Sign in anonymously
-    await FirebaseAuth.instance.signInAnonymously();
+  Stream<BleStatus> get statusStream => _statusCtrl.stream;
+  Stream<bool>      get sosStream     => _sosCtrl.stream;
+  Stream<String>    get logStream     => _logCtrl.stream;
 
-    // Request permissions
-    final granted = await _requestPermissions();
-    if (!granted) {
-      status = "❌ Permissions denied";
-      notifyListeners();
-      return;
-    }
+  BleStatus get status => _status;
+  bool get isConnected => _status == BleStatus.connected;
 
-    // Start BLE scan
-    _startScan();
+  // ── Singleton ──────────────────────────────────────────────────────────────
+  static final BleService _instance = BleService._internal();
+  factory BleService() => _instance;
+  BleService._internal();
 
-    // Upload to Firebase every 3 seconds
-    uploadTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      _uploadToFirebase();
-    });
-  }
+  // ── Public API ─────────────────────────────────────────────────────────────
 
-  Future<bool> _requestPermissions() async {
+  /// Request all required Bluetooth + Location permissions (Android only).
+  /// Returns true if all granted.
+  Future<bool> requestPermissions() async {
+    if (!Platform.isAndroid) return true;
     final statuses = await [
       Permission.bluetoothScan,
       Permission.bluetoothConnect,
-      Permission.bluetoothAdvertise,
-      Permission.locationWhenInUse,
+      Permission.location,
     ].request();
+    final allGranted = statuses.values.every(
+        (s) => s == PermissionStatus.granted || s == PermissionStatus.limited);
+    if (!allGranted) {
+      _log('Bluetooth or location permissions denied');
+    }
+    return allGranted;
+  }
 
-    final locService = Location();
-    bool serviceEnabled = await locService.serviceEnabled();
-    if (!serviceEnabled) {
-      serviceEnabled = await locService.requestService();
+  /// Scan for BikeTracker_E and connect. Returns true on success.
+  Future<bool> connectToDevice() async {
+    if (_status == BleStatus.connected) return true;
+
+    // Request permissions first on Android
+    final granted = await requestPermissions();
+    if (!granted) {
+      _updateStatus(BleStatus.error);
+      return false;
     }
 
-    return statuses.values.every((status) => status.isGranted) && serviceEnabled;
-  }
+    _updateStatus(BleStatus.scanning);
+    _log('Scanning for $deviceName…');
 
-  // ================= SCAN =================
-  void _startScan() {
-    status = "Scanning for BLE devices...";
-    notifyListeners();
+    // Cancel any leftover scan
+    await FlutterBluePlus.stopScan();
 
-    _scanSubscription?.cancel();
-    _scanSubscription =
-        flutterReactiveBle.scanForDevices(withServices: []).listen((scanResult) {
-      if (scanResult.name.contains("BikeTracker_E") && device == null) {
-        device = scanResult;
-        status = "✅ Found ${device!.name}";
-        notifyListeners();
-        _scanSubscription?.cancel();
-        _connectToDevice();
-      }
-    }, onError: (e) {
-      status = "❌ Scan error: $e";
-      notifyListeners();
-    });
+    final completer = Completer<BluetoothDevice?>();
 
-    // Timeout
-    Future.delayed(const Duration(seconds: 15), () {
-      if (device == null) {
-        _scanSubscription?.cancel();
-        status = "❌ Device not found after 15s";
-        notifyListeners();
+    _scanSub = FlutterBluePlus.onScanResults.listen((results) {
+      for (final r in results) {
+        if (r.device.advName == deviceName || r.device.platformName == deviceName) {
+          _log('Found $deviceName');
+          FlutterBluePlus.stopScan();
+          if (!completer.isCompleted) completer.complete(r.device);
+          return;
+        }
       }
     });
+
+    await FlutterBluePlus.startScan(
+      withNames: [deviceName],
+      timeout: const Duration(seconds: 10),
+    );
+
+    // If scan ends without finding the device
+    _scanSub?.cancel();
+    if (!completer.isCompleted) completer.complete(null);
+
+    final device = await completer.future;
+    if (device == null) {
+      _log('Device not found');
+      _updateStatus(BleStatus.error);
+      return false;
+    }
+
+    return await _connect(device);
   }
 
-  // ================= CONNECT =================
-  void _connectToDevice() {
-    if (device == null) return;
+  Future<bool> _connect(BluetoothDevice device) async {
+    _updateStatus(BleStatus.connecting);
+    _device = device;
 
-    status = "Connecting to ${device!.name}...";
-    notifyListeners();
-
-    _connectionSubscription?.cancel();
-    _connectionSubscription = flutterReactiveBle
-        .connectToDevice(
-      id: device!.id,
-      servicesWithCharacteristicsToDiscover: {
-        Uuid.parse(serviceUuid):
-            characteristicUuids.values.map((e) => Uuid.parse(e)).toList()
-      },
-    )
-        .listen((connectionState) {
-      status = "Connection: ${connectionState.connectionState}";
-      notifyListeners();
-
-      if (connectionState.connectionState ==
-          DeviceConnectionState.connected) {
-        Future.delayed(const Duration(milliseconds: 200), _subscribeToAllCharacteristics);
-      }
-    }, onError: (e) {
-      status = "❌ Connection error: $e";
-      notifyListeners();
-      Future.delayed(const Duration(seconds: 2), _connectToDevice);
-    });
-  }
-
-  // ================= SUBSCRIBE =================
-  void _subscribeToAllCharacteristics() {
-    if (device == null) return;
-
-    characteristicUuids.forEach((label, charUuid) {
-      final characteristic = QualifiedCharacteristic(
-        deviceId: device!.id,
-        serviceId: Uuid.parse(serviceUuid),
-        characteristicId: Uuid.parse(charUuid),
-      );
-
-      _charSubscriptions[label]?.cancel();
-      _charSubscriptions[label] =
-          flutterReactiveBle.subscribeToCharacteristic(characteristic).listen(
-        (data) {
-          if (data.length >= 4) {
-            final byteData = ByteData.sublistView(Uint8List.fromList(data));
-            final value = byteData.getFloat32(0, Endian.little);
-
-            switch (label) {
-              case "Latitude":
-                latitude = value;
-                break;
-              case "Longitude":
-                longitude = value;
-                break;
-              case "Speed":
-                speed = value;
-                break;
-              case "Distance":
-                distance = value;
-                break;
-              case "Progress":
-                progress = value;
-                break;
-            }
-            bleValues[label] = value;
-            notifyListeners();
-          }
-        },
-        onError: (e) => print("Subscription error $label: $e"),
-      );
-    });
-  }
-
-  // ================= FIREBASE UPLOAD =================
-  Future<void> _uploadToFirebase() async {
     try {
-      await database.update({
-        "Latitude": latitude,
-        "Longitude": longitude,
-        "Speed": speed,
-        "Distance": distance,
-        "Progress": progress,
-        "TargetDistance": targetDistance,
-        "timestamp": DateTime.now().toIso8601String(),
-      });
+      await device.connect(autoConnect: false, timeout: const Duration(seconds: 15));
     } catch (e) {
-      print("Firebase upload error: $e");
+      _log('Connect error: $e');
+      _updateStatus(BleStatus.error);
+      return false;
+    }
+
+    // Watch for disconnection
+    _connSub = device.connectionState.listen((state) {
+      if (state == BluetoothConnectionState.disconnected) {
+        _log('Device disconnected');
+        _updateStatus(BleStatus.disconnected);
+        _clearCharacteristics();
+      }
+    });
+
+    return await _discoverServices(device);
+  }
+
+  Future<bool> _discoverServices(BluetoothDevice device) async {
+    try {
+      final services = await device.discoverServices();
+      for (final svc in services) {
+        if (svc.uuid.str128.toLowerCase() == _serviceUuid) {
+          _log('GPP service found');
+          for (final c in svc.characteristics) {
+            final uuid = c.uuid.str128.toLowerCase();
+            if (uuid == _charSpeed)   _cSpeed   = c;
+            if (uuid == _charGoal)    _cGoal    = c;
+            if (uuid == _charTime)    _cTime    = c;
+            if (uuid == _charFriends) _cFriends = c;
+            if (uuid == _charSos)     _cSos     = c;
+          }
+          break;
+        }
+      }
+    } catch (e) {
+      _log('Service discovery error: $e');
+      _updateStatus(BleStatus.error);
+      return false;
+    }
+
+    if (_cSpeed == null) {
+      _log('Required characteristics not found');
+      _updateStatus(BleStatus.error);
+      return false;
+    }
+
+    // Subscribe to SOS notifications
+    if (_cSos != null) {
+      try {
+        await _cSos!.setNotifyValue(true);
+        _sosSub = _cSos!.onValueReceived.listen((value) {
+          if (value.isNotEmpty) {
+            final triggered = value[0] == 0x01;
+            _log(triggered ? '🚨 SOS ALERT!' : 'SOS cleared');
+            _sosCtrl.add(triggered);
+          }
+        });
+        _log('SOS notify enabled');
+      } catch (e) {
+        _log('SOS notify error: $e');
+      }
+    }
+
+    _updateStatus(BleStatus.connected);
+    _log('Connected to $deviceName');
+
+    // Initial sync: send current time
+    await syncTime();
+
+    return true;
+  }
+
+  void disconnect() {
+    _sosSub?.cancel();
+    _connSub?.cancel();
+    _scanSub?.cancel();
+    _device?.disconnect();
+    _clearCharacteristics();
+    _updateStatus(BleStatus.disconnected);
+    _log('Disconnected');
+  }
+
+  // ── Write helpers ──────────────────────────────────────────────────────────
+
+  /// Write speed (km/h) and accumulated distance (metres) to device.
+  /// Format: "15.2,1250.5"
+  Future<void> writeSpeedDistance(double speedKmh, double distanceM) async {
+    if (_cSpeed == null || !isConnected) return;
+    final payload = '${speedKmh.toStringAsFixed(1)},${distanceM.toStringAsFixed(1)}';
+    try {
+      await _cSpeed!.write(payload.codeUnits, withoutResponse: false);
+    } catch (e) {
+      _log('writeSpeedDistance error: $e');
     }
   }
 
-  // ================= SET TARGET DISTANCE =================
-  void setTargetDistance(double newTarget) {
-    targetDistance = newTarget;
-    notifyListeners();
+  /// Write cycling goal to device. Value is in metres (Float32 LE).
+  Future<void> writeGoalMetres(double metres) async {
+    if (_cGoal == null || !isConnected) return;
+    try {
+      final bd = ByteData(4)..setFloat32(0, metres, Endian.little);
+      await _cGoal!.write(bd.buffer.asUint8List());
+      _log('Goal sent: ${metres.toStringAsFixed(0)} m');
+    } catch (e) {
+      _log('writeGoal error: $e');
+    }
   }
 
-  @override
+  /// Write current time "HH:MM" to device for display sync.
+  Future<void> syncTime() async {
+    if (_cTime == null || !isConnected) return;
+    try {
+      final now = DateTime.now();
+      final t = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+      await _cTime!.write(t.codeUnits);
+      _log('Time synced: $t');
+    } catch (e) {
+      _log('syncTime error: $e');
+    }
+  }
+
+  /// Write online friends count to device (Int32 LE).
+  Future<void> writeOnlineFriends(int count) async {
+    if (_cFriends == null || !isConnected) return;
+    try {
+      final bd = ByteData(4)..setInt32(0, count, Endian.little);
+      await _cFriends!.write(bd.buffer.asUint8List());
+      _log('Friends online: $count');
+    } catch (e) {
+      _log('writeFriends error: $e');
+    }
+  }
+
+  // ── Internals ──────────────────────────────────────────────────────────────
+
+  void _updateStatus(BleStatus s) {
+    _status = s;
+    _statusCtrl.add(s);
+  }
+
+  void _clearCharacteristics() {
+    _cSpeed = null; _cGoal = null; _cTime = null;
+    _cFriends = null; _cSos = null;
+  }
+
+  void _log(String msg) {
+    debugPrint('[BLE] $msg');
+    _logCtrl.add(msg);
+  }
+
   void dispose() {
-    uploadTimer?.cancel();
-    _scanSubscription?.cancel();
-    _connectionSubscription?.cancel();
-    _charSubscriptions.forEach((_, sub) => sub.cancel());
-    super.dispose();
+    disconnect();
+    _statusCtrl.close();
+    _sosCtrl.close();
+    _logCtrl.close();
   }
 }

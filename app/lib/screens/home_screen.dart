@@ -4,6 +4,7 @@ import '../main.dart';
 import '../models/activity.dart';
 import '../models/user.dart';
 import '../data/mock_data.dart';
+import '../widgets/route_map_thumbnail.dart';
 import 'activity_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -187,18 +188,12 @@ class _RideCard extends StatelessWidget {
             _divider(), _statBox('${activity.calories}', 'kcal'),
           ])),
 
-          // Route sketch
-          Container(
-            margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-            height: 72,
-            decoration: BoxDecoration(
-              color: AppTheme.greenLight,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: CustomPaint(size: Size.infinite,
-                  painter: _RoutePainter(activity.route)),
+          // Route map (real Google Maps tile when API key is set)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            child: RouteMapThumbnail(
+              points: activity.route,
+              height: 72,
             ),
           ),
 
@@ -275,28 +270,4 @@ class _RideCard extends StatelessWidget {
   }
 }
 
-class _RoutePainter extends CustomPainter {
-  final List<GpsPoint> pts;
-  _RoutePainter(this.pts);
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (pts.length < 2) return;
-    final paint = Paint()..color = AppTheme.greenDark..strokeWidth = 2.5
-        ..style = PaintingStyle.stroke..strokeCap = StrokeCap.round..strokeJoin = StrokeJoin.round;
-    double minLat = pts.map((p) => p.lat).reduce((a, b) => a < b ? a : b);
-    double maxLat = pts.map((p) => p.lat).reduce((a, b) => a > b ? a : b);
-    double minLng = pts.map((p) => p.lng).reduce((a, b) => a < b ? a : b);
-    double maxLng = pts.map((p) => p.lng).reduce((a, b) => a > b ? a : b);
-    double lR = (maxLat - minLat).abs(); if (lR < 0.0001) lR = 0.001;
-    double gR = (maxLng - minLng).abs(); if (gR < 0.0001) gR = 0.001;
-    const pad = 10.0;
-    final path = Path();
-    for (int i = 0; i < pts.length; i++) {
-      final x = pad + ((pts[i].lng - minLng) / gR) * (size.width - pad * 2);
-      final y = pad + (1 - (pts[i].lat - minLat) / lR) * (size.height - pad * 2);
-      i == 0 ? path.moveTo(x, y) : path.lineTo(x, y);
-    }
-    canvas.drawPath(path, paint);
-  }
-  @override bool shouldRepaint(_) => false;
-}
+// Route painting is now handled by widgets/route_map_thumbnail.dart

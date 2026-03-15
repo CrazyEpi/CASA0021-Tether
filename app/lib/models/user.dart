@@ -95,7 +95,7 @@ class UserData {
   static final List<AppUser> _users = [
     AppUser(
       id: 'user_001',
-      username: 'Yidan Wei',
+      username: 'Yidan',
       email: 'yidan@ucl.ac.uk',
       bio: 'CASA MSc student | Running enthusiast',
       joinDate: DateTime(2024, 9, 1),

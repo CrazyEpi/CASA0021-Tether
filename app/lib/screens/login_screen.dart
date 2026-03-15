@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../main.dart';
 import '../models/user.dart';
 import 'main_nav_screen.dart';
-import 'live_tracking_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -185,7 +184,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
               // ---- Feature chips ----
               Wrap(spacing: 8, runSpacing: 8, children: [
-                _chip(Icons.gps_fixed, 'Live GPS'), // clickable now
+                _chip(Icons.gps_fixed, 'Live GPS'),
                 _chip(Icons.map_outlined, 'Route Planner'),
                 _chip(Icons.flag_outlined, 'Ride Goals'),
                 _chip(Icons.leaderboard_outlined, 'Leaderboard'),
@@ -227,39 +226,17 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // ---- Feature chip widget ----
-  Widget _chip(IconData icon, String label) {
-    final isLiveGPS = label == 'Live GPS';
-    return GestureDetector(
-      onTap: isLiveGPS
-          ? () {
-              final dummyUser = AppUser(
-                id: "demo123",
-                username: "DemoUser",
-                email: "demo@ucl.ac.uk",
-                joinDate: DateTime.now(),
-              );
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => LiveTrackingScreen(currentUser: dummyUser),
-                ),
-              );
-            }
-          : null,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.07),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white10),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, color: AppTheme.green, size: 13),
-          const SizedBox(width: 5),
-          Text(label, style: const TextStyle(color: Colors.white60, fontSize: 11)),
-        ]),
-      ),
-    );
-  }
+  Widget _chip(IconData icon, String label) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    decoration: BoxDecoration(
+      color: Colors.white.withOpacity(0.07),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: Colors.white10),
+    ),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, color: AppTheme.green, size: 13),
+      const SizedBox(width: 5),
+      Text(label, style: const TextStyle(color: Colors.white60, fontSize: 11)),
+    ]),
+  );
 }

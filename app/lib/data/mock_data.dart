@@ -132,7 +132,7 @@ class MockData {
       Activity(
         id: 'act_001',
         userId: 'user_001',
-        userName: 'Yidan Wei',
+        userName: 'Yidan',
         type: 'run',
         startTime: DateTime.now().subtract(const Duration(hours: 2, minutes: 30)),
         endTime: DateTime.now().subtract(const Duration(hours: 1, minutes: 15)),
@@ -149,7 +149,7 @@ class MockData {
       Activity(
         id: 'act_002',
         userId: 'user_001',
-        userName: 'Yidan Wei',
+        userName: 'Yidan',
         type: 'cycle',
         startTime: DateTime.now().subtract(const Duration(days: 1, hours: 7)),
         endTime: DateTime.now().subtract(const Duration(days: 1, hours: 5, minutes: 30)),
@@ -166,7 +166,7 @@ class MockData {
       Activity(
         id: 'act_003',
         userId: 'user_001',
-        userName: 'Yidan Wei',
+        userName: 'Yidan',
         type: 'run',
         startTime: DateTime.now().subtract(const Duration(days: 3)),
         endTime: DateTime.now().subtract(const Duration(days: 2, hours: 22, minutes: 30)),
@@ -182,7 +182,7 @@ class MockData {
       Activity(
         id: 'act_004',
         userId: 'user_001',
-        userName: 'Yidan Wei',
+        userName: 'Yidan',
         type: 'walk',
         startTime: DateTime.now().subtract(const Duration(days: 5)),
         endTime: DateTime.now().subtract(const Duration(days: 4, hours: 21)),
@@ -324,6 +324,57 @@ class MockData {
       ),
     ];
     return entries;
+  }
+
+  // ============================================================
+  // SIMULATION ROUTE - for Demo Mode in Live Tracking (no hardware)
+  // Returns an expanded Regent's Park route with more points & realistic speeds
+  // ============================================================
+  static List<GpsPoint> getSimRoute() {
+    final basePoints = [
+      [51.531100, -0.159200],
+      [51.531400, -0.158500],
+      [51.531700, -0.157600],
+      [51.532200, -0.156500],
+      [51.532900, -0.155300],
+      [51.533600, -0.154400],
+      [51.534400, -0.153800],
+      [51.535300, -0.153500],
+      [51.536100, -0.153700],
+      [51.536800, -0.154200],
+      [51.537300, -0.155000],
+      [51.537700, -0.156200],
+      [51.537900, -0.157500],
+      [51.537700, -0.158800],
+      [51.537200, -0.159900],
+      [51.536500, -0.160600],
+      [51.535600, -0.161000],
+      [51.534500, -0.160800],
+      [51.533400, -0.160200],
+      [51.532400, -0.159500],
+      [51.531600, -0.159300],
+      [51.531100, -0.159200],
+    ];
+    double cumulativeDistance = 0;
+    final List<GpsPoint> points = [];
+    final speeds = [10.2, 11.5, 13.1, 14.8, 15.2, 14.6, 13.9, 14.0, 15.5,
+                    16.2, 15.8, 14.5, 13.2, 12.8, 13.5, 14.1, 13.6, 12.9,
+                    12.4, 11.8, 11.2, 10.5];
+    for (int i = 0; i < basePoints.length; i++) {
+      if (i > 0) {
+        final dlat = (basePoints[i][0] - basePoints[i - 1][0]).abs();
+        final dlng = (basePoints[i][1] - basePoints[i - 1][1]).abs();
+        cumulativeDistance += (dlat * 111.0 + dlng * 72.0);
+      }
+      points.add(GpsPoint(
+        lat: basePoints[i][0],
+        lng: basePoints[i][1],
+        speed: speeds[i],
+        totalDistance: cumulativeDistance,
+        timestamp: DateTime.now(),
+      ));
+    }
+    return points;
   }
 
   // ============================================================

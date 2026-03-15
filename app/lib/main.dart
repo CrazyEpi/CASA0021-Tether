@@ -1,31 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:provider/provider.dart';
-
-import 'firebase_options.dart';
-import 'services/ble_service.dart';
+import 'models/user.dart';
 import 'screens/login_screen.dart';
+import 'screens/main_nav_screen.dart';
 
-
-
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  // Sign in anonymously
-  await FirebaseAuth.instance.signInAnonymously();
-
-  runApp(
-    ChangeNotifierProvider(
-      create: (_) => BLEService()..initialize(),
-      child: const GPPFitnessApp(),
-    ),
-  );
+void main() {
+  runApp(const GPPFitnessApp());
 }
 
 class GPPFitnessApp extends StatelessWidget {
@@ -56,7 +35,7 @@ class AppTheme {
   static const Color greyLight  = Color(0xFFEEEEEE);
   static const Color red        = Color(0xFFE05252);
 
-  // Legacy alias
+  // Legacy alias so existing screens still compile
   static const Color primaryOrange = green;
 
   static ThemeData get theme => ThemeData(

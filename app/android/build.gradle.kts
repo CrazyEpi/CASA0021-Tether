@@ -1,8 +1,3 @@
-plugins {
-    // Make Google Services plugin available to app-level Gradle
-    id("com.google.gms.google-services") version "4.3.15" apply false
-}
-
 allprojects {
     repositories {
         google()
@@ -10,7 +5,6 @@ allprojects {
     }
 }
 
-// Optional: redirect build directories outside app folder
 val newBuildDir: Directory =
     rootProject.layout.buildDirectory
         .dir("../../build")
@@ -21,12 +15,10 @@ subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
-
 subprojects {
     project.evaluationDependsOn(":app")
 }
 
-// Clean task
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }

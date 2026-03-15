@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../main.dart';
 import '../models/activity.dart';
+import '../widgets/route_map_thumbnail.dart';
 
 class ActivityDetailScreen extends StatelessWidget {
   final Activity activity;
@@ -25,78 +26,83 @@ class ActivityDetailScreen extends StatelessWidget {
           SliverAppBar(
             expandedHeight: 200,
             pinned: true,
-            backgroundColor: AppTheme.primaryOrange,
+            backgroundColor: AppTheme.greenDark,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
               onPressed: () => Navigator.pop(context),
             ),
             flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFFFC5200), Color(0xFFFF8C42)],
+              background: Stack(
+                children: [
+                  // Real map background (or green gradient fallback)
+                  Positioned.fill(
+                    child: RouteMapThumbnail(
+                      points: activity.route,
+                      height: 200,
+                      borderRadius: BorderRadius.zero,
+                    ),
                   ),
-                ),
-                child: Stack(
-                  children: [
-                    // Route mini map
-                    Positioned.fill(
-                      child: Opacity(
-                        opacity: 0.3,
-                        child: CustomPaint(
-                          painter: _RoutePainter(activity.route),
+                  // Green gradient overlay so title text stays readable
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            AppTheme.greenDark.withOpacity(0.80),
+                          ],
                         ),
                       ),
                     ),
-                    // Activity info
-                    Positioned(
-                      bottom: 20,
-                      left: 20,
-                      right: 20,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(activity.typeIcon, style: const TextStyle(fontSize: 18)),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  activity.typeLabel,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                  ),
+                  // Activity info at the bottom
+                  Positioned(
+                    bottom: 20,
+                    left: 20,
+                    right: 20,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(activity.typeIcon, style: const TextStyle(fontSize: 18)),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                activity.typeLabel,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            activity.title,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          activity.title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
                           ),
-                          Text(
-                            DateFormat('EEEE, MMMM d · HH:mm').format(activity.startTime),
-                            style: const TextStyle(color: Colors.white70, fontSize: 13),
-                          ),
-                        ],
-                      ),
+                        ),
+                        Text(
+                          DateFormat('EEEE, MMMM d · HH:mm').format(activity.startTime),
+                          style: const TextStyle(color: Colors.white70, fontSize: 13),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -214,7 +220,7 @@ class _PrimaryStatsCard extends StatelessWidget {
     return Expanded(
       child: Row(
         children: [
-          Icon(icon, size: 16, color: AppTheme.primaryOrange),
+          Icon(icon, size: 16, color: AppTheme.greenDark),
           const SizedBox(width: 6),
           Expanded(
             child: Column(
@@ -266,7 +272,7 @@ class _RouteMapCard extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
             child: Row(
               children: [
-                const Icon(Icons.map, size: 16, color: AppTheme.primaryOrange),
+                const Icon(Icons.map, size: 16, color: AppTheme.greenDark),
                 const SizedBox(width: 8),
                 Text('Route',
                     style: TextStyle(
@@ -281,30 +287,13 @@ class _RouteMapCard extends StatelessWidget {
               ],
             ),
           ),
-          Container(
-            height: 220,
-            margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              gradient: LinearGradient(
-                colors: isDark
-                    ? [const Color(0xFF0D1B2A), const Color(0xFF1A2A3A)]
-                    : [const Color(0xFFE8F4FD), const Color(0xFFCCE7F5)],
-              ),
-            ),
-            child: Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: CustomPaint(
-                    size: Size.infinite,
-                    painter: _FullRoutePainter(activity.route, isDark),
-                  ),
-                ),
-                // Start/End markers
-                if (activity.route.isNotEmpty)
-                  _RouteMarker(label: 'A', color: Colors.green),
-              ],
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: RouteMapThumbnail(
+              points: activity.route,
+              isDetailView: true,
+              height: 220,
+              borderRadius: const BorderRadius.all(Radius.circular(12)),
             ),
           ),
         ],
@@ -313,34 +302,7 @@ class _RouteMapCard extends StatelessWidget {
   }
 }
 
-class _RouteMarker extends StatelessWidget {
-  final String label;
-  final Color color;
-  const _RouteMarker({required this.label, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      top: 8,
-      right: 8,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: Colors.black54,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.location_on, color: Colors.white, size: 12),
-            SizedBox(width: 4),
-            Text('London, UK', style: TextStyle(color: Colors.white, fontSize: 10)),
-          ],
-        ),
-      ),
-    );
-  }
-}
+// Route display is now handled by widgets/route_map_thumbnail.dart
 
 class _DetailedStatsCard extends StatelessWidget {
   final Activity activity;
@@ -360,7 +322,7 @@ class _DetailedStatsCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.analytics_outlined, size: 16, color: AppTheme.primaryOrange),
+              const Icon(Icons.analytics_outlined, size: 16, color: AppTheme.greenDark),
               const SizedBox(width: 8),
               Text('Detailed Stats',
                   style: TextStyle(
@@ -430,7 +392,7 @@ class _GpsDataCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.gps_fixed, size: 16, color: AppTheme.primaryOrange),
+              const Icon(Icons.gps_fixed, size: 16, color: AppTheme.greenDark),
               const SizedBox(width: 8),
               Text('GPS Data Sample',
                   style: TextStyle(
@@ -516,7 +478,7 @@ class _DescriptionCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.notes, size: 16, color: AppTheme.primaryOrange),
+              const Icon(Icons.notes, size: 16, color: AppTheme.greenDark),
               const SizedBox(width: 8),
               Text('Notes',
                   style: TextStyle(
@@ -537,89 +499,3 @@ class _DescriptionCard extends StatelessWidget {
   }
 }
 
-// Route painters
-class _RoutePainter extends CustomPainter {
-  final List<GpsPoint> points;
-  _RoutePainter(this.points);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (points.length < 2) return;
-    final paint = Paint()
-      ..color = Colors.white.withOpacity(0.6)
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke;
-
-    double minLat = points.map((p) => p.lat).reduce((a, b) => a < b ? a : b);
-    double maxLat = points.map((p) => p.lat).reduce((a, b) => a > b ? a : b);
-    double minLng = points.map((p) => p.lng).reduce((a, b) => a < b ? a : b);
-    double maxLng = points.map((p) => p.lng).reduce((a, b) => a > b ? a : b);
-    double latRange = (maxLat - minLat == 0) ? 0.001 : maxLat - minLat;
-    double lngRange = (maxLng - minLng == 0) ? 0.001 : maxLng - minLng;
-
-    final pad = 20.0;
-    final path = Path();
-    for (int i = 0; i < points.length; i++) {
-      final x = pad + ((points[i].lng - minLng) / lngRange) * (size.width - pad * 2);
-      final y = pad + (1 - (points[i].lat - minLat) / latRange) * (size.height - pad * 2);
-      if (i == 0) path.moveTo(x, y);
-      else path.lineTo(x, y);
-    }
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _FullRoutePainter extends CustomPainter {
-  final List<GpsPoint> points;
-  final bool isDark;
-  _FullRoutePainter(this.points, this.isDark);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (points.length < 2) return;
-
-    final trackPaint = Paint()
-      ..color = AppTheme.primaryOrange
-      ..strokeWidth = 3.5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    double minLat = points.map((p) => p.lat).reduce((a, b) => a < b ? a : b);
-    double maxLat = points.map((p) => p.lat).reduce((a, b) => a > b ? a : b);
-    double minLng = points.map((p) => p.lng).reduce((a, b) => a < b ? a : b);
-    double maxLng = points.map((p) => p.lng).reduce((a, b) => a > b ? a : b);
-    double latRange = (maxLat - minLat == 0) ? 0.001 : maxLat - minLat;
-    double lngRange = (maxLng - minLng == 0) ? 0.001 : maxLng - minLng;
-
-    final pad = 24.0;
-    final path = Path();
-    for (int i = 0; i < points.length; i++) {
-      final x = pad + ((points[i].lng - minLng) / lngRange) * (size.width - pad * 2);
-      final y = pad + (1 - (points[i].lat - minLat) / latRange) * (size.height - pad * 2);
-      if (i == 0) path.moveTo(x, y);
-      else path.lineTo(x, y);
-    }
-    canvas.drawPath(path, trackPaint);
-
-    // Start point
-    final startPt = points.first;
-    final sx = pad + ((startPt.lng - minLng) / lngRange) * (size.width - pad * 2);
-    final sy = pad + (1 - (startPt.lat - minLat) / latRange) * (size.height - pad * 2);
-    canvas.drawCircle(Offset(sx, sy), 7, Paint()..color = Colors.green..style = PaintingStyle.fill);
-    canvas.drawCircle(Offset(sx, sy), 7, Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 2);
-
-    // End point
-    final endPt = points.last;
-    final ex = pad + ((endPt.lng - minLng) / lngRange) * (size.width - pad * 2);
-    final ey = pad + (1 - (endPt.lat - minLat) / latRange) * (size.height - pad * 2);
-    canvas.drawCircle(Offset(ex, ey), 7, Paint()..color = Colors.red..style = PaintingStyle.fill);
-    canvas.drawCircle(Offset(ex, ey), 7, Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 2);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}

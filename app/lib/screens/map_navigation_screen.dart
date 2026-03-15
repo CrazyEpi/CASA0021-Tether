@@ -1,29 +1,24 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import '../main.dart';
 import '../models/user.dart';
 import '../models/trip_goal.dart';
+import '../config/api_keys.dart';
 
 // ============================================================
 // MAP NAVIGATION SCREEN
-// Google Maps + Directions API (cycling mode)
+// OpenStreetMap tiles (flutter_map) + Google Directions API
 //
-// ⚠️  SETUP: Replace 'YOUR_GOOGLE_MAPS_API_KEY' with your key
-//    Get key: https://console.cloud.google.com
-//    Enable: Maps SDK iOS/Android · Directions API · Places API
-//
-//    Also add to iOS: ios/Runner/AppDelegate.swift
-//      GMSServices.provideAPIKey("YOUR_KEY")
-//    And android: android/app/src/main/AndroidManifest.xml
-//      <meta-data android:name="com.google.android.geo.API_KEY"
-//                 android:value="YOUR_KEY"/>
+// The map uses free OpenStreetMap tiles – no SDK needed.
+// Route search uses the Google Directions API (your key from
+// api_keys.dart is used automatically once enabled).
 // ============================================================
 
-const String _kApiKey = 'YOUR_GOOGLE_MAPS_API_KEY';
-const LatLng  _kUCL   = LatLng(51.5246, -0.1340); // UCL default origin
+const LatLng _kUCL = LatLng(51.5246, -0.1340); // UCL default origin
 
 class MapNavigationScreen extends StatefulWidget {
   final AppUser currentUser;
@@ -35,40 +30,50 @@ class MapNavigationScreen extends StatefulWidget {
 }
 
 class _MapNavigationScreenState extends State<MapNavigationScreen> {
-  final _mapCompleter = Completer<GoogleMapController>();
-  final _searchCtrl   = TextEditingController();
-  final _searchFocus  = FocusNode();
-  GoogleMapController? _mapCtrl;
+  final _mapCtrl    = MapController();
+  final _searchCtrl = TextEditingController();
+  final _searchFocus = FocusNode();
 
-  Set<Marker>   _markers   = {};
-  Set<Polyline> _polylines = {};
+  List<Polyline> _polylines = [];
+  List<Marker>   _markers   = [];
   List<Map<String, dynamic>> _suggestions = [];
-  bool   _loading       = false;
-  bool   _showSuggs     = false;
+  bool   _loading    = false;
+  bool   _showSuggs  = false;
   double? _distanceKm;
-  String  _destName     = '';
-  String  _duration     = '';
-  LatLng  _origin       = _kUCL;
+  String  _destName  = '';
+  String  _duration  = '';
+  final LatLng _origin = _kUCL;
 
-  // Demo places (used when no real API key)
+  // Demo places (shown when API key isn't configured yet)
   static const _demoPlaces = [
-    {'name': "Regent's Park",      'lat': 51.5313, 'lng': -0.1570, 'dist': 3.2},
-    {'name': 'Hyde Park',          'lat': 51.5073, 'lng': -0.1657, 'dist': 5.8},
-    {'name': 'Richmond Park',      'lat': 51.4406, 'lng': -0.2763, 'dist': 18.4},
-    {'name': 'Olympic Park',       'lat': 51.5455, 'lng': -0.0160, 'dist': 11.3},
-    {'name': 'Hampstead Heath',    'lat': 51.5616, 'lng': -0.1639, 'dist': 6.7},
-    {'name': 'Greenwich Park',     'lat': 51.4769, 'lng': -0.0005, 'dist': 10.1},
-    {'name': 'Crystal Palace Park','lat': 51.4209, 'lng': -0.0785, 'dist': 14.5},
-    {'name': 'Victoria Park',      'lat': 51.5362, 'lng': -0.0383, 'dist': 8.2},
+    {'name': "Regent's Park",       'lat': 51.5313, 'lng': -0.1570, 'dist': 3.2},
+    {'name': 'Hyde Park',           'lat': 51.5073, 'lng': -0.1657, 'dist': 5.8},
+    {'name': 'Richmond Park',       'lat': 51.4406, 'lng': -0.2763, 'dist': 18.4},
+    {'name': 'Olympic Park',        'lat': 51.5455, 'lng': -0.0160, 'dist': 11.3},
+    {'name': 'Hampstead Heath',     'lat': 51.5616, 'lng': -0.1639, 'dist': 6.7},
+    {'name': 'Greenwich Park',      'lat': 51.4769, 'lng': -0.0005, 'dist': 10.1},
+    {'name': 'Crystal Palace Park', 'lat': 51.4209, 'lng': -0.0785, 'dist': 14.5},
+    {'name': 'Victoria Park',       'lat': 51.5362, 'lng': -0.0383, 'dist': 8.2},
   ];
 
+  bool get _hasApiKey =>
+      kGoogleMapsApiKey.isNotEmpty && kGoogleMapsApiKey != 'YOUR_API_KEY_HERE';
+
   @override
-  void dispose() { _searchCtrl.dispose(); _searchFocus.dispose(); super.dispose(); }
+  void dispose() {
+    _searchCtrl.dispose();
+    _searchFocus.dispose();
+    _mapCtrl.dispose();
+    super.dispose();
+  }
 
   void _onSearch(String q) {
-    if (q.length < 1) { setState(() { _suggestions = []; _showSuggs = false; }); return; }
+    if (q.isEmpty) {
+      setState(() { _suggestions = []; _showSuggs = false; });
+      return;
+    }
     final lower = q.toLowerCase();
-    if (_kApiKey == 'YOUR_GOOGLE_MAPS_API_KEY') {
+    if (!_hasApiKey) {
       setState(() {
         _suggestions = _demoPlaces
             .where((p) => (p['name'] as String).toLowerCase().contains(lower))
@@ -85,10 +90,10 @@ class _MapNavigationScreenState extends State<MapNavigationScreen> {
     final url = Uri.parse(
       'https://maps.googleapis.com/maps/api/place/autocomplete/json'
       '?input=${Uri.encodeComponent(q)}&location=51.5246,-0.1340'
-      '&radius=60000&key=$_kApiKey',
+      '&radius=60000&key=$kGoogleMapsApiKey',
     );
     try {
-      final res = await http.get(url);
+      final res  = await http.get(url);
       final data = jsonDecode(res.body) as Map;
       setState(() {
         _suggestions = (data['predictions'] as List)
@@ -106,10 +111,9 @@ class _MapNavigationScreenState extends State<MapNavigationScreen> {
     _searchFocus.unfocus();
     _destName = p['name'];
 
-    if (_kApiKey == 'YOUR_GOOGLE_MAPS_API_KEY') {
+    if (!_hasApiKey) {
       final dest = LatLng(p['lat'] as double, p['lng'] as double);
-      final dist = p['dist'] as double;
-      _drawDemoRoute(dest, dist);
+      _drawDemoRoute(dest, p['dist'] as double);
     } else {
       await _geocodeThenRoute(p['place_id']);
     }
@@ -117,20 +121,28 @@ class _MapNavigationScreenState extends State<MapNavigationScreen> {
 
   void _drawDemoRoute(LatLng dest, double dist) {
     setState(() {
-      _distanceKm  = dist;
-      _duration    = '${(dist / 20 * 60).toInt()} min (cycling est.)';
-      _markers = {
-        Marker(markerId: const MarkerId('origin'), position: _origin,
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-            infoWindow: const InfoWindow(title: '📍 Start (UCL)')),
-        Marker(markerId: const MarkerId('dest'), position: dest,
-            infoWindow: InfoWindow(title: '🏁 $_destName')),
-      };
-      _polylines = {
-        Polyline(polylineId: const PolylineId('route'), points: [_origin, dest],
-            color: AppTheme.green, width: 4,
-            patterns: [PatternItem.dash(18), PatternItem.gap(10)]),
-      };
+      _distanceKm = dist;
+      _duration   = '${(dist / 20 * 60).toInt()} min (cycling est.)';
+      _markers = [
+        Marker(
+          point: _origin,
+          width: 40, height: 40,
+          child: const Icon(Icons.location_pin, color: Colors.green, size: 36),
+        ),
+        Marker(
+          point: dest,
+          width: 40, height: 40,
+          child: const Icon(Icons.flag, color: Colors.red, size: 30),
+        ),
+      ];
+      _polylines = [
+        Polyline(
+          points: [_origin, dest],
+          color: AppTheme.green,
+          strokeWidth: 4,
+          pattern: StrokePattern.dashed(segments: [15, 8]),
+        ),
+      ];
       _loading = false;
     });
     _fitBounds(_origin, dest);
@@ -139,7 +151,7 @@ class _MapNavigationScreenState extends State<MapNavigationScreen> {
   Future<void> _geocodeThenRoute(String placeId) async {
     final url = Uri.parse(
       'https://maps.googleapis.com/maps/api/place/details/json'
-      '?place_id=$placeId&fields=geometry&key=$_kApiKey',
+      '?place_id=$placeId&fields=geometry&key=$kGoogleMapsApiKey',
     );
     final res  = await http.get(url);
     final data = jsonDecode(res.body) as Map;
@@ -152,7 +164,7 @@ class _MapNavigationScreenState extends State<MapNavigationScreen> {
       'https://maps.googleapis.com/maps/api/directions/json'
       '?origin=${_origin.latitude},${_origin.longitude}'
       '&destination=${dest.latitude},${dest.longitude}'
-      '&mode=bicycling&key=$_kApiKey',
+      '&mode=bicycling&key=$kGoogleMapsApiKey',
     );
     try {
       final res  = await http.get(url);
@@ -163,36 +175,44 @@ class _MapNavigationScreenState extends State<MapNavigationScreen> {
         setState(() {
           _distanceKm = (leg['distance']['value'] as int) / 1000.0;
           _duration   = leg['duration']['text'];
-          _markers = {
-            Marker(markerId: const MarkerId('o'), position: _origin,
-                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-                infoWindow: const InfoWindow(title: 'Start')),
-            Marker(markerId: const MarkerId('d'), position: dest,
-                infoWindow: InfoWindow(title: _destName)),
-          };
-          _polylines = {
-            Polyline(polylineId: const PolylineId('r'),
-                points: pts, color: AppTheme.green, width: 5),
-          };
+          _markers = [
+            Marker(
+              point: _origin,
+              width: 40, height: 40,
+              child: const Icon(Icons.location_pin, color: Colors.green, size: 36),
+            ),
+            Marker(
+              point: dest,
+              width: 40, height: 40,
+              child: const Icon(Icons.flag, color: Colors.red, size: 30),
+            ),
+          ];
+          _polylines = [
+            Polyline(points: pts, color: AppTheme.green, strokeWidth: 5),
+          ];
           _loading = false;
         });
         _fitBounds(_origin, dest);
-      } else { setState(() => _loading = false); }
-    } catch (_) { setState(() => _loading = false); }
+      } else {
+        setState(() => _loading = false);
+      }
+    } catch (_) {
+      setState(() => _loading = false);
+    }
   }
 
   void _fitBounds(LatLng a, LatLng b) {
     final bounds = LatLngBounds(
-      southwest: LatLng(
+      LatLng(
         [a.latitude,  b.latitude ].reduce((x, y) => x < y ? x : y) - 0.01,
         [a.longitude, b.longitude].reduce((x, y) => x < y ? x : y) - 0.01,
       ),
-      northeast: LatLng(
+      LatLng(
         [a.latitude,  b.latitude ].reduce((x, y) => x > y ? x : y) + 0.01,
         [a.longitude, b.longitude].reduce((x, y) => x > y ? x : y) + 0.01,
       ),
     );
-    _mapCtrl?.animateCamera(CameraUpdate.newLatLngBounds(bounds, 60));
+    _mapCtrl.fitCamera(CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(60)));
   }
 
   List<LatLng> _decode(String enc) {
@@ -237,14 +257,23 @@ class _MapNavigationScreenState extends State<MapNavigationScreen> {
       appBar: AppBar(title: const Text('Plan Your Ride'), backgroundColor: AppTheme.white),
       body: Stack(children: [
 
-        // ── Google Map ──────────────────────────────────────
-        GoogleMap(
-          initialCameraPosition: const CameraPosition(target: _kUCL, zoom: 13),
-          onMapCreated: (c) { _mapCompleter.complete(c); _mapCtrl = c; },
-          markers: _markers,
-          polylines: _polylines,
-          myLocationEnabled: true,
-          myLocationButtonEnabled: true,
+        // ── OpenStreetMap ───────────────────────────────────
+        FlutterMap(
+          mapController: _mapCtrl,
+          options: const MapOptions(
+            initialCenter: _kUCL,
+            initialZoom: 13,
+          ),
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.gpp.cycling_tracker',
+            ),
+            if (_polylines.isNotEmpty)
+              PolylineLayer(polylines: _polylines),
+            if (_markers.isNotEmpty)
+              MarkerLayer(markers: _markers),
+          ],
         ),
 
         // ── Search overlay ──────────────────────────────────
@@ -253,7 +282,7 @@ class _MapNavigationScreenState extends State<MapNavigationScreen> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0,4))],
+              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0,4))],
             ),
             child: TextField(
               controller: _searchCtrl,
@@ -264,12 +293,16 @@ class _MapNavigationScreenState extends State<MapNavigationScreen> {
                 hintText: 'Where do you want to ride?',
                 prefixIcon: const Icon(Icons.search, color: AppTheme.green),
                 suffixIcon: _searchCtrl.text.isNotEmpty
-                    ? IconButton(icon: const Icon(Icons.close, size: 18, color: AppTheme.grey),
-                        onPressed: () { _searchCtrl.clear();
+                    ? IconButton(
+                        icon: const Icon(Icons.close, size: 18, color: AppTheme.grey),
+                        onPressed: () {
+                          _searchCtrl.clear();
                           setState(() { _suggestions=[]; _showSuggs=false;
-                            _markers={}; _polylines={}; _distanceKm=null; }); })
+                            _markers=[]; _polylines=[]; _distanceKm=null; });
+                        })
                     : null,
-                filled: false, border: InputBorder.none,
+                filled: false,
+                border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(vertical: 14),
               ),
             ),
@@ -281,18 +314,22 @@ class _MapNavigationScreenState extends State<MapNavigationScreen> {
               margin: const EdgeInsets.only(top: 4),
               decoration: BoxDecoration(
                 color: Colors.white, borderRadius: BorderRadius.circular(14),
-                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0,4))],
+                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0,4))],
               ),
               child: Column(children: [
-                Padding(padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
                   child: Row(children: [
                     const Icon(Icons.place, color: AppTheme.green, size: 13),
                     const SizedBox(width: 6),
-                    Text(_kApiKey == 'YOUR_GOOGLE_MAPS_API_KEY'
-                        ? 'Demo destinations · Add API key for live search'
-                        : 'Google Places results',
-                        style: const TextStyle(fontSize: 10, color: AppTheme.grey)),
-                  ])),
+                    Text(
+                      _hasApiKey
+                          ? 'Google Places results'
+                          : 'Demo destinations · Add API key for live search',
+                      style: const TextStyle(fontSize: 10, color: AppTheme.grey),
+                    ),
+                  ]),
+                ),
                 ..._suggestions.map((s) => ListTile(
                   dense: true,
                   leading: const Icon(Icons.location_on_outlined, color: AppTheme.green, size: 18),
@@ -328,8 +365,9 @@ class _MapNavigationScreenState extends State<MapNavigationScreen> {
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   const Text('Destination', style: TextStyle(fontSize: 11, color: AppTheme.grey)),
-                  Text(_destName, style: const TextStyle(fontWeight: FontWeight.w700,
-                      fontSize: 14, color: AppTheme.black),
+                  Text(_destName,
+                      style: const TextStyle(fontWeight: FontWeight.w700,
+                          fontSize: 14, color: AppTheme.black),
                       maxLines: 1, overflow: TextOverflow.ellipsis),
                 ])),
               ]),
@@ -351,8 +389,10 @@ class _MapNavigationScreenState extends State<MapNavigationScreen> {
                   icon: const Icon(Icons.flag_outlined, size: 18),
                   label: const Text("Set as Today's Trip Goal"),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.green, foregroundColor: AppTheme.black,
-                    shape: const StadiumBorder(), elevation: 0,
+                    backgroundColor: AppTheme.green,
+                    foregroundColor: AppTheme.black,
+                    shape: const StadiumBorder(),
+                    elevation: 0,
                     textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
                   ),
                 ),
@@ -370,13 +410,13 @@ class _MapNavigationScreenState extends State<MapNavigationScreen> {
   Widget _statTile(IconData icon, String val, String lbl) => Expanded(
     child: Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
-      decoration: BoxDecoration(color: AppTheme.greenLight,
-          borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+          color: AppTheme.greenLight, borderRadius: BorderRadius.circular(12)),
       child: Column(children: [
         Icon(icon, color: AppTheme.greenDark, size: 18),
         const SizedBox(height: 4),
-        Text(val, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13,
-            color: AppTheme.black), textAlign: TextAlign.center),
+        Text(val, style: const TextStyle(fontWeight: FontWeight.w800,
+            fontSize: 13, color: AppTheme.black), textAlign: TextAlign.center),
         Text(lbl, style: const TextStyle(fontSize: 10, color: AppTheme.grey)),
       ]),
     ),
