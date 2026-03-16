@@ -298,7 +298,11 @@ void loop() {
     // --- 状态显示更新 ---
     if (isPhoneConnected) {
       lv_label_set_text_fmt(label_gps, "%s | App Connected", currentTime);
-      lv_label_set_text_fmt(label_speed, "%.1f\nkm/h", currentSpeed);
+      //lv_label_set_text_fmt(label_speed, "%.1f\nkm/h", currentSpeed);
+
+      static char speed_buf[16];
+      snprintf(speed_buf, sizeof(speed_buf), "%.1f\nkm/h", currentSpeed);
+      lv_label_set_text(label_speed, speed_buf);
 
       if (!isEmergency) {
         // 连接成功的前 3 秒亮绿灯，之后亮蓝色进度条
