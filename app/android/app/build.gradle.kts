@@ -24,6 +24,7 @@ android {
         applicationId = "com.gpp.cycling_tracker"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
+        minSdkVersion (21);
         minSdk = flutter.minSdkVersion // BLE requires API 21+
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
