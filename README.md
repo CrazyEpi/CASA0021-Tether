@@ -11,3 +11,6 @@ Components Used
 
 4. 1.25mm Ultra-Slim Pitch 2-pin Cable Matching Pair —— 0.9 Pounds
 
+5. 3D print —— 1.2 Pounds
+
+All: 64.3 Pounds
