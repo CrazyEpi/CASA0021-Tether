@@ -1,9 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart'; // [NEW] Added Firebase core
+import 'firebase_options.dart';                  // [NEW] Added generated options
 import 'models/user.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_nav_screen.dart';
 
-void main() {
+// [REVISED] main function must be async to initialize Firebase
+void main() async {
+  // [NEW] Required to allow platform-specific code (Firebase) to run before the UI
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // [NEW] Connect to your Firebase project
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   runApp(const GPPFitnessApp());
 }
 

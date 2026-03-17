@@ -1,10 +1,11 @@
 import 'dart:async';
-import 'dart:convert'; // [修复] 引入用于 utf8 编码
+import 'dart:convert'; // 用于 utf8 编码
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'firestore_service.dart'; // [ADD] Cloud Sync Service
 
 enum BleStatus { disconnected, scanning, connecting, connected, error }
 
@@ -35,6 +36,9 @@ class BleService {
 
   // [修复] 防止高频 GPS 更新导致 BLE 写入通道堵塞的锁
   bool _isWritingSpeed = false; 
+
+  // [ADD] Firestore Instance
+  final FirestoreService _firestore = FirestoreService();
 
   final _statusCtrl = StreamController<BleStatus>.broadcast();
   final _sosCtrl    = StreamController<bool>.broadcast();
@@ -228,6 +232,9 @@ Future<bool> connectToDevice() async {
             final triggered = value[0] == 0x01;
             _log(triggered ? '🚨 SOS ALERT!' : 'SOS cleared');
             _sosCtrl.add(triggered);
+
+            // [ADD] Sync SOS Alert to Cloud
+            _firestore.logSosAlert(triggered);
           }
         });
         _log('SOS notify enabled');
@@ -264,6 +271,9 @@ Future<bool> connectToDevice() async {
     // [修复 3] 防止 GPS 高频刷新把通道堵死
     if (_isWritingSpeed) return; 
     _isWritingSpeed = true;
+
+    // [ADD] Sync Speed/Distance to Cloud
+    _firestore.updateRideMetrics(speedKmh, distanceM);
 
     final payload = '${speedKmh.toStringAsFixed(1)},${distanceM.toStringAsFixed(1)}';
     try {

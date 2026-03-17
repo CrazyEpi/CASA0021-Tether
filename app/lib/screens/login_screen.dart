@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb; // Alias to prevent conflict
 import '../main.dart';
-import '../models/user.dart';
+import '../models/user.dart'; // Contains AppUser
 import 'main_nav_screen.dart';
+import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,6 +15,8 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailCtrl    = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  final _authService  = AuthService(); 
+  
   bool _obscure   = true;
   bool _loading   = false;
   bool _isSignUp  = false;
@@ -24,22 +28,53 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _login() async {
+  // --- REVISED LOGIN LOGIC (Firebase + AppUser) ---
+  Future<void> _handleAuth() async {
     final email = _emailCtrl.text.trim();
     final pw    = _passwordCtrl.text;
-    if (email.isEmpty || pw.isEmpty) { _snack('Please enter email and password'); return; }
+
+    if (email.isEmpty || pw.isEmpty) { 
+      _snack('Please enter email and password'); 
+      return; 
+    }
+
     setState(() => _loading = true);
-    await Future.delayed(const Duration(milliseconds: 600));
+
+    fb.User? firebaseUser;
+
+    try {
+      if (_isSignUp) {
+        firebaseUser = await _authService.signUp(email, pw);
+      } else {
+        firebaseUser = await _authService.signIn(email, pw);
+      }
+    } catch (e) {
+      _snack('Auth Error: $e', error: true);
+    }
+
     if (!mounted) return;
     setState(() => _loading = false);
-    if (!UserData.isEmailRegistered(email)) {
-      _snack('Account not found', error: true);
-    } else if (!UserData.verifyUser(email, pw)) {
-      _snack('Incorrect password', error: true);
+
+    if (firebaseUser != null) {
+      // Create an AppUser object (matching your friend's model)
+      final currentUser = AppUser(
+        id: firebaseUser.uid,
+        username: email.split('@')[0], 
+        email: email,
+        joinDate: DateTime.now(),      // Required by AppUser model
+        friendIds: [],                 // Required by AppUser model
+        bio: 'New Cyclist',
+        avatarUrl: '',
+      );
+
+      _snack(_isSignUp ? 'Account created!' : 'Success! Welcome back.');
+      
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => MainNavScreen(currentUser: currentUser)),
+      );
     } else {
-      final user = UserData.getUserByEmail(email)!;
-      Navigator.pushReplacement(context,
-          MaterialPageRoute(builder: (_) => MainNavScreen(currentUser: user)));
+      _snack('Authentication failed. Check your details.', error: true);
     }
   }
 
@@ -73,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: AppTheme.green,
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Icon(Icons.pedal_bike, color: Colors.white, size: 26),
+                    child: const Icon(Icons.pedal_bike, color: Colors.black, size: 26),
                   ),
                   const SizedBox(width: 12),
                   const Column(
@@ -120,13 +155,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   obscure: _obscure,
                   suffix: IconButton(
                     icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                        color: Colors.white38, size: 20),
+                        color: AppTheme.green.withOpacity(0.5), size: 20),
                     onPressed: () => setState(() => _obscure = !_obscure),
                   )),
 
               const SizedBox(height: 12),
 
-              // ---- Demo hint ----
+              // ---- Helper Hint ----
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -134,27 +169,24 @@ class _LoginScreenState extends State<LoginScreen> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppTheme.green.withOpacity(0.3)),
                 ),
-                child: const Row(children: [
-                  Icon(Icons.info_outline, color: AppTheme.green, size: 15),
-                  SizedBox(width: 8),
+                child: Row(children: [
+                  const Icon(Icons.cloud_done_outlined, color: AppTheme.green, size: 15),
+                  const SizedBox(width: 8),
                   Expanded(child: Text(
-                    'Demo  ·  yidan@ucl.ac.uk  ·  casa2025',
-                    style: TextStyle(color: Colors.white60, fontSize: 12),
+                    _isSignUp ? 'Password must be 6+ characters' : 'Connected to Firebase Auth',
+                    style: const TextStyle(color: Colors.white60, fontSize: 12),
                   )),
                 ]),
               ),
 
               const SizedBox(height: 28),
 
-              // ---- Login button ----
+              // ---- Action Button ----
               SizedBox(
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  onPressed: _loading ? null : (_isSignUp ? () {
-                    _snack('Demo mode: use existing account');
-                    setState(() => _isSignUp = false);
-                  } : _login),
+                  onPressed: _loading ? null : _handleAuth,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.green,
                     foregroundColor: AppTheme.black,
@@ -164,7 +196,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: _loading
                       ? const SizedBox(width: 22, height: 22,
                           child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.black))
-                      : Text(_isSignUp ? 'Sign Up' : 'Log In',
+                      : Text(_isSignUp ? 'Create Account' : 'Sign In',
                           style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
                 ),
               ),
@@ -185,10 +217,9 @@ class _LoginScreenState extends State<LoginScreen> {
               // ---- Feature chips ----
               Wrap(spacing: 8, runSpacing: 8, children: [
                 _chip(Icons.gps_fixed, 'Live GPS'),
-                _chip(Icons.map_outlined, 'Route Planner'),
-                _chip(Icons.flag_outlined, 'Ride Goals'),
-                _chip(Icons.leaderboard_outlined, 'Leaderboard'),
-                _chip(Icons.people_outline, 'Friends'),
+                _chip(Icons.cloud_upload_outlined, 'Cloud Sync'),
+                _chip(Icons.flag_outlined, 'Goals'),
+                _chip(Icons.leaderboard_outlined, 'Ranks'),
               ]),
 
               const SizedBox(height: 32),
@@ -199,28 +230,32 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // FIXED: Pure Black Background and Green Text for the typing boxes
   Widget _field(TextEditingController c, String hint, IconData icon,
       {TextInputType? type, bool obscure = false, Widget? suffix}) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08),
+        color: Colors.black, // Set to pure black
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(color: AppTheme.green.withOpacity(0.4)), // Subtle green border
       ),
       child: TextField(
         controller: c,
         keyboardType: type,
         obscureText: obscure,
-        style: const TextStyle(color: Colors.white, fontSize: 15),
+        cursorColor: AppTheme.green,
+        style: const TextStyle(
+          color: AppTheme.green, // Typed text is now green
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(color: Colors.white30),
-          prefixIcon: Icon(icon, color: Colors.white38, size: 20),
+          hintStyle: TextStyle(color: AppTheme.green.withOpacity(0.3)),
+          prefixIcon: Icon(icon, color: AppTheme.green, size: 20), // Green icon
           suffixIcon: suffix,
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 16),
-          fillColor: Colors.transparent,
-          filled: false,
+          contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
         ),
       ),
     );
