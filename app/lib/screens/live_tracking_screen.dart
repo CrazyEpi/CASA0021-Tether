@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' hide Path;
+import 'package:cloud_firestore/cloud_firestore.dart'; // [NEW] Added for Data Sharing
 import '../main.dart';
 import '../models/activity.dart';
 import '../data/mock_data.dart';
@@ -19,6 +20,7 @@ import '../services/location_service.dart';
 //               char 19B10004 ← online friends count on connect
 //               char 19B10005 → SOS alert (notify, phone ← device)
 // Demo mode   : Simulates Regent's Park route (no hardware needed)
+// Firebase    : Pushes real-time speed/pos to users/{id}/live_stats
 // ============================================================
 
 class LiveTrackingScreen extends StatefulWidget {
@@ -33,6 +35,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
     with TickerProviderStateMixin {
   final _ble = BleService();
   final _loc = LocationService();
+  final _db  = FirebaseFirestore.instance; // [NEW] Database instance
 
   // ── Tracking state ────────────────────────────────────────────────────────
   bool _isTracking   = false;
@@ -57,6 +60,9 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
   DateTime? _startTime;
   DateTime? _pauseStart;
   int _pausedSeconds = 0;
+
+  // Social Listener [NEW]
+  StreamSubscription? _friendsSub;
 
   // Demo / simulation mode (no hardware)
   bool _isSimulating = false;
@@ -91,7 +97,13 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
 
     // BLE status updates
     _bleStatusSub = _ble.statusStream.listen((s) {
-      if (mounted) setState(() => _bleStatus = s);
+      if (mounted) {
+        setState(() => _bleStatus = s);
+        // [NEW] Restart listener if BLE reconnected
+        if (s == BleStatus.connected) {
+          _startFriendListener();
+        }
+      }
     });
 
     // BLE log
@@ -122,6 +134,9 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
       });
       _followPosition();
     });
+
+    // [NEW] Initialize Friend Listener on start
+    _startFriendListener();
   }
 
   @override
@@ -130,18 +145,69 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
     _timer?.cancel();
     _simTimer?.cancel();
     _bleWriteTimer?.cancel();
+    _friendsSub?.cancel(); // [NEW]
     _mapController.dispose();
     _bleStatusSub?.cancel();
     _bleLogSub?.cancel();
     _sosSub?.cancel();
     _gpsSub?.cancel();
     _loc.stopTracking();
+    _updateFirebaseStatus(false); // [NEW] Set offline on exit
     super.dispose();
   }
 
   String _ts() {
     final n = DateTime.now();
     return '${n.hour.toString().padLeft(2,'0')}:${n.minute.toString().padLeft(2,'0')}';
+  }
+
+  // ── Firebase Sync & Listener Logic ─────────────────────────────────────────
+  
+  /// [NEW] Social Listener: Watches for friends riding to trigger NeoPixels
+  void _startFriendListener() {
+    _friendsSub?.cancel();
+    if (widget.currentUser.friendIds.isEmpty) return;
+
+    debugPrint("DEBUG: Starting listener for ${widget.currentUser.friendIds.length} friends.");
+    
+    _friendsSub = _db
+        .collection('users')
+        .where(FieldPath.documentId, whereIn: widget.currentUser.friendIds)
+        .snapshots()
+        .listen((snapshot) {
+      for (var change in snapshot.docChanges) {
+        // Only react to updates, not initial loads
+        if (change.type == DocumentChangeType.modified) {
+          final data = change.doc.data();
+          final bool isFriendRiding = data?['isRiding'] ?? false;
+          
+          if (isFriendRiding && _ble.isConnected) {
+            debugPrint("SOCIAL: Friend ${data?['username']} started riding. Pulsing bike!");
+            _ble.writeNeoPixelSocialSignal(); 
+          }
+        }
+      }
+    });
+  }
+
+  /// [NEW] Push real-time data so friends can see speed and trigger NeoPixels
+  Future<void> _updateFirebaseStatus(bool isLive) async {
+    try {
+      await _db.collection('users').doc(widget.currentUser.id).set({ 
+        'isRiding': isLive,
+        'live_stats': isLive ? {
+          'speed': _currentSpeed,
+          'lat': _currentLat,
+          'lng': _currentLng,
+          'dist': _totalDistance,
+          'lastUpdate': FieldValue.serverTimestamp(),
+        } : null,
+      }, SetOptions(merge: true)); 
+      
+      debugPrint("✅ Data sent! Check Firebase now.");
+    } catch (e) {
+      debugPrint("❌ Error: $e");
+    }
   }
 
   // ── BLE ──────────────────────────────────────────────────────────────────
@@ -167,23 +233,29 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
     _ble.disconnect();
   }
 
-  /// Periodically write speed+distance to the BLE device while tracking.
+  /// Periodically write speed+distance to the BLE device AND Firebase while tracking.
   void _startBleWriteTimer() {
     _bleWriteTimer?.cancel();
     _bleWriteTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
       if (!_isTracking || _isPaused) return;
+      
+      // 1. Send to Local Hardware
       if (_ble.isConnected) {
         await _ble.writeSpeedDistance(
           _currentSpeed,
           _totalDistance * 1000, // km → m
         );
       }
+
+      // 2. [NEW] Send to Cloud (Firebase) for Data Sharing
+      _updateFirebaseStatus(true);
     });
   }
 
   void _stopBleWriteTimer() {
     _bleWriteTimer?.cancel();
     _bleWriteTimer = null;
+    _updateFirebaseStatus(false); // [NEW] Mark session as ended
   }
 
   // ── SOS ──────────────────────────────────────────────────────────────────
@@ -246,7 +318,10 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
         _trackPoints.add(point);
       });
       _followPosition();
-      // Send to BLE even in demo mode
+
+      // [NEW] Sync simulated data to Firebase too
+      _updateFirebaseStatus(true);
+
       if (_ble.isConnected) {
         _ble.writeSpeedDistance(point.speed, point.totalDistance);
       }
@@ -260,6 +335,13 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
 
   // ── Tracking lifecycle ────────────────────────────────────────────────────
   Future<void> _startTracking() async {
+
+    print("DEBUG: _startTracking button was pressed!");
+    try {
+      await FirebaseFirestore.instance.collection('test').doc('ping').set({'status': 'Online'});
+      print("DEBUG: Firebase write sent successfully!");
+    } catch (e) { print("DEBUG: Firebase ERROR: $e"); }
+
     // Start phone GPS
     final started = await _loc.startTracking();
     if (!started && mounted) {
@@ -292,6 +374,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
       _isPaused = !_isPaused;
       if (_isPaused) {
         _pauseStart = DateTime.now();
+        _updateFirebaseStatus(false); // [NEW] Stop pulses when paused
       } else {
         if (_pauseStart != null) {
           _pausedSeconds += DateTime.now().difference(_pauseStart!).inSeconds;
@@ -927,47 +1010,49 @@ class _SaveActivityDialog extends StatefulWidget {
 }
 
 class _SaveActivityDialogState extends State<_SaveActivityDialog> {
-  final _titleCtrl = TextEditingController(text: 'Morning Ride');
-  String _type = 'cycle';
+  final _titleController = TextEditingController();
+  String _selectedType = 'cycle';
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _titleController.text = 'Ride on ${now.day}/${now.month}';
+  }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Save Activity'),
+      title: const Text('Finish Activity'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('Distance: ${widget.distance.toStringAsFixed(2)} km'),
-          Text('Duration: ${widget.duration ~/ 60}m ${widget.duration % 60}s'),
-          const SizedBox(height: 12),
           TextField(
-            controller: _titleCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Activity Title',
-              border: OutlineInputBorder(),
-            ),
+            controller: _titleController,
+            decoration: const InputDecoration(labelText: 'Activity Title'),
           ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            value: _type,
-            decoration: const InputDecoration(
-                labelText: 'Type', border: OutlineInputBorder()),
-            items: const [
-              DropdownMenuItem(value: 'cycle', child: Text('Cycling')),
-              DropdownMenuItem(value: 'run',   child: Text('Run')),
-              DropdownMenuItem(value: 'walk',  child: Text('Walk')),
-              DropdownMenuItem(value: 'hike',  child: Text('Hike')),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Type:'),
+              DropdownButton<String>(
+                value: _selectedType,
+                onChanged: (v) => setState(() => _selectedType = v!),
+                items: const [
+                  DropdownMenuItem(value: 'cycle', child: Text('Cycling')),
+                  DropdownMenuItem(value: 'run', child: Text('Running')),
+                ],
+              ),
             ],
-            onChanged: (v) => setState(() => _type = v!),
           ),
         ],
       ),
       actions: [
         TextButton(onPressed: widget.onDiscard, child: const Text('Discard')),
         ElevatedButton(
-          onPressed: () => widget.onSave(_titleCtrl.text, _type),
-          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryOrange),
-          child: const Text('Save'),
+          onPressed: () => widget.onSave(_titleController.text, _selectedType),
+          child: const Text('Save Activity'),
         ),
       ],
     );

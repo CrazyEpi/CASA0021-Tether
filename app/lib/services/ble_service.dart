@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'dart:convert'; // 用于 utf8 编码
+import 'dart:convert'; // For utf8 encoding
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'firestore_service.dart'; // [ADD] Cloud Sync Service
+import 'firestore_service.dart'; // Cloud Sync Service
 
 enum BleStatus { disconnected, scanning, connecting, connected, error }
 
@@ -17,6 +17,7 @@ class BleService {
   static const String _charTime     = '19b10003-e8f2-537e-4f6c-d104768a1214';
   static const String _charFriends  = '19b10004-e8f2-537e-4f6c-d104768a1214';
   static const String _charSos      = '19b10005-e8f2-537e-4f6c-d104768a1214';
+  static const String _charSocial   = '19b10006-e8f2-537e-4f6c-d104768a1214'; // [NEW] Social Signal UUID
 
   static const String deviceName    = 'BikeTracker_E';
 
@@ -29,15 +30,14 @@ class BleService {
   BluetoothCharacteristic? _cTime;
   BluetoothCharacteristic? _cFriends;
   BluetoothCharacteristic? _cSos;
+  BluetoothCharacteristic? _cSocial; // [NEW] Social Characteristic
 
   StreamSubscription? _scanSub;
   StreamSubscription? _connSub;
   StreamSubscription? _sosSub;
 
-  // [修复] 防止高频 GPS 更新导致 BLE 写入通道堵塞的锁
   bool _isWritingSpeed = false; 
 
-  // [ADD] Firestore Instance
   final FirestoreService _firestore = FirestoreService();
 
   final _statusCtrl = StreamController<BleStatus>.broadcast();
@@ -64,99 +64,84 @@ class BleService {
       Permission.bluetoothConnect,
       Permission.location,
     ].request();
-    final allGranted = statuses.values.every(
-        (s) => s == PermissionStatus.granted || s == PermissionStatus.limited);
-    if (!allGranted) _log('Bluetooth/location permissions denied');
-    return allGranted;
+    return statuses.values.every((s) => s.isGranted || s.isLimited);
   }
 
-Future<bool> connectToDevice() async {
-  if (_status == BleStatus.connected) return true;
+  Future<bool> connectToDevice() async {
+    if (_status == BleStatus.connected) return true;
 
-  if (await FlutterBluePlus.isSupported == false) {
-    _log('⚠️ 致命错误：这台手机不支持蓝牙！');
-    _updateStatus(BleStatus.error);
-    return false;
-  }
+    if (await FlutterBluePlus.isSupported == false) {
+      _log('⚠️ Hardware does not support Bluetooth');
+      _updateStatus(BleStatus.error);
+      return false;
+    }
 
-  if (Platform.isAndroid) {
-    if (FlutterBluePlus.adapterStateNow != BluetoothAdapterState.on) {
+    if (Platform.isAndroid && FlutterBluePlus.adapterStateNow != BluetoothAdapterState.on) {
       await FlutterBluePlus.turnOn();
     }
-  }
 
-  final granted = await requestPermissions();
-  if (!granted) {
-    _log('⚠️ 权限被拒绝');
-    _updateStatus(BleStatus.error);
-    return false;
-  }
+    final granted = await requestPermissions();
+    if (!granted) {
+      _log('⚠️ Permissions denied');
+      _updateStatus(BleStatus.error);
+      return false;
+    }
 
-  _updateStatus(BleStatus.scanning);
-  _log('🔍 正在扫描: $deviceName (UUID: $_serviceUuid)');
+    _updateStatus(BleStatus.scanning);
+    _log('🔍 Scanning for: $deviceName');
 
-  await FlutterBluePlus.stopScan();
+    await FlutterBluePlus.stopScan();
 
-  final completer = Completer<BluetoothDevice?>();
-  
-  // 1. 设置一个手动定时器，防止逻辑跑飞
-  Timer? timeoutTimer;
+    final completer = Completer<BluetoothDevice?>();
+    Timer? timeoutTimer;
 
-  // 2. 监听扫描结果
-  _scanSub = FlutterBluePlus.onScanResults.listen((results) {
-    for (final r in results) {
-      // 调试：打印所有搜到的设备名称，看看它到底叫什么
-      _log('Found: ${r.device.platformName} | ${r.advertisementData.localName}');
+    _scanSub = FlutterBluePlus.onScanResults.listen((results) {
+      for (final r in results) {
+        bool matchName = r.device.advName == deviceName || 
+                         r.device.platformName == deviceName ||
+                         r.advertisementData.localName == deviceName;
+        
+        bool matchUuid = r.advertisementData.serviceUuids
+            .map((e) => e.toString().toLowerCase())
+            .contains(_serviceUuid.toLowerCase());
 
-      bool matchName = r.device.advName == deviceName || 
-                       r.device.platformName == deviceName ||
-                       r.advertisementData.localName == deviceName;
-      
-      // 检查 UUID（最稳的方法）
-      bool matchUuid = r.advertisementData.serviceUuids
-          .map((e) => e.toString().toLowerCase())
-          .contains(_serviceUuid.toLowerCase());
-
-      if (matchName || matchUuid) {
-        _log('✅ 成功匹配设备！正在连接...');
-        timeoutTimer?.cancel();
-        FlutterBluePlus.stopScan();
-        if (!completer.isCompleted) completer.complete(r.device);
-        return;
+        if (matchName || matchUuid) {
+          _log('✅ Device Matched! Connecting...');
+          timeoutTimer?.cancel();
+          FlutterBluePlus.stopScan();
+          if (!completer.isCompleted) completer.complete(r.device);
+          return;
+        }
       }
+    });
+
+    try {
+      await FlutterBluePlus.startScan(
+        withServices: [Guid(_serviceUuid)], 
+        timeout: const Duration(seconds: 10),
+      );
+    } catch (e) {
+      _log('❌ Scan failed: $e');
     }
-  });
 
-  // 3. 启动扫描
-  try {
-    // 这里使用 withServices 可以极大提高安卓下的成功率
-    await FlutterBluePlus.startScan(
-      withServices: [Guid(_serviceUuid)], 
-      timeout: const Duration(seconds: 10),
-    );
-  } catch (e) {
-    _log('❌ 扫描启动失败: $e');
-  }
+    timeoutTimer = Timer(const Duration(seconds: 10), () {
+      if (!completer.isCompleted) {
+        _log('⏱️ Scan timeout');
+        FlutterBluePlus.stopScan();
+        completer.complete(null);
+      }
+    });
 
-  // 4. 设置 10 秒后自动结束（如果没有搜到）
-  timeoutTimer = Timer(const Duration(seconds: 10), () {
-    if (!completer.isCompleted) {
-      _log('⏱️ 扫描真正超时：未发现目标设备');
-      FlutterBluePlus.stopScan();
-      completer.complete(null);
+    final device = await completer.future;
+    _scanSub?.cancel();
+
+    if (device == null) {
+      _updateStatus(BleStatus.error);
+      return false;
     }
-  });
 
-  final device = await completer.future;
-  _scanSub?.cancel(); // 只有在 Completer 完成后才取消订阅
-
-  if (device == null) {
-    _updateStatus(BleStatus.error);
-    return false;
+    return await _connect(device);
   }
-
-  return await _connect(device);
-}
 
   Future<bool> _connect(BluetoothDevice device) async {
     _updateStatus(BleStatus.connecting);
@@ -170,17 +155,10 @@ Future<bool> connectToDevice() async {
       return false;
     }
 
-    // [修复 1] Android 蓝牙底层需要喘息时间，必须加延时！
     await Future.delayed(const Duration(milliseconds: 600));
 
-    // [修复 2] 强制协商 MTU 大小，这是 nRF Connect 能通信的秘密
     if (Platform.isAndroid) {
-      try {
-        await device.requestMtu(251);
-        _log('MTU requested successfully');
-      } catch (e) {
-        _log('MTU request failed (ignoring): $e');
-      }
+      try { await device.requestMtu(251); } catch (_) {}
     }
 
     _connSub = device.connectionState.listen((state) {
@@ -198,7 +176,6 @@ Future<bool> connectToDevice() async {
     try {
       final services = await device.discoverServices();
       for (final svc in services) {
-        // [修复] 使用 toString() 防止某些版本中 str128 报错
         if (svc.uuid.toString().toLowerCase() == _serviceUuid) {
           _log('GPP service found');
           for (final c in svc.characteristics) {
@@ -208,6 +185,7 @@ Future<bool> connectToDevice() async {
             if (uuid == _charTime)    _cTime    = c;
             if (uuid == _charFriends) _cFriends = c;
             if (uuid == _charSos)     _cSos     = c;
+            if (uuid == _charSocial)  _cSocial  = c; // [NEW]
           }
           break;
         }
@@ -232,21 +210,15 @@ Future<bool> connectToDevice() async {
             final triggered = value[0] == 0x01;
             _log(triggered ? '🚨 SOS ALERT!' : 'SOS cleared');
             _sosCtrl.add(triggered);
-
-            // [ADD] Sync SOS Alert to Cloud
             _firestore.logSosAlert(triggered);
           }
         });
-        _log('SOS notify enabled');
-      } catch (e) {
-        _log('SOS notify error: $e');
-      }
+      } catch (e) { _log('SOS notify error: $e'); }
     }
 
     _updateStatus(BleStatus.connected);
     _log('Connected to $deviceName');
 
-    // [修复] 延时同步时间，确保 Notify 通道彻底建立
     await Future.delayed(const Duration(milliseconds: 200));
     await syncTime();
 
@@ -265,19 +237,27 @@ Future<bool> connectToDevice() async {
 
   // ── Write helpers ──────────────────────────────────────────────────────────
 
+  /// [NEW] Triggers NeoPixel animation on bike when a friend rides
+  Future<void> writeNeoPixelSocialSignal() async {
+    if (_cSocial == null || !isConnected) return;
+    try {
+      // Sending 0x01 as trigger byte
+      await _cSocial!.write([0x01], withoutResponse: false);
+      _log('Social pulse sent to bike!');
+    } catch (e) {
+      _log('Social signal error: $e');
+    }
+  }
+
   Future<void> writeSpeedDistance(double speedKmh, double distanceM) async {
     if (_cSpeed == null || !isConnected) return;
-    
-    // [修复 3] 防止 GPS 高频刷新把通道堵死
     if (_isWritingSpeed) return; 
     _isWritingSpeed = true;
 
-    // [ADD] Sync Speed/Distance to Cloud
     _firestore.updateRideMetrics(speedKmh, distanceM);
 
     final payload = '${speedKmh.toStringAsFixed(1)},${distanceM.toStringAsFixed(1)}';
     try {
-      // [修复 4] 使用 utf8.encode 保证绝对安全的纯净 Byte 数组
       await _cSpeed!.write(utf8.encode(payload), withoutResponse: false);
     } catch (e) {
       _log('writeSpeedDistance error: $e');
@@ -290,12 +270,9 @@ Future<bool> connectToDevice() async {
     if (_cGoal == null || !isConnected) return;
     try {
       final bd = ByteData(4)..setFloat32(0, metres, Endian.little);
-      // [修复] .toList() 强制转换，防止 MethodChannel 类型报错
       await _cGoal!.write(bd.buffer.asUint8List().toList(), withoutResponse: false);
       _log('Goal sent: ${metres.toStringAsFixed(0)} m');
-    } catch (e) {
-      _log('writeGoal error: $e');
-    }
+    } catch (e) { _log('writeGoal error: $e'); }
   }
 
   Future<void> syncTime() async {
@@ -305,9 +282,7 @@ Future<bool> connectToDevice() async {
       final t = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
       await _cTime!.write(utf8.encode(t), withoutResponse: false);
       _log('Time synced: $t');
-    } catch (e) {
-      _log('syncTime error: $e');
-    }
+    } catch (e) { _log('syncTime error: $e'); }
   }
 
   Future<void> writeOnlineFriends(int count) async {
@@ -316,9 +291,7 @@ Future<bool> connectToDevice() async {
       final bd = ByteData(4)..setInt32(0, count, Endian.little);
       await _cFriends!.write(bd.buffer.asUint8List().toList(), withoutResponse: false);
       _log('Friends online: $count');
-    } catch (e) {
-      _log('writeFriends error: $e');
-    }
+    } catch (e) { _log('writeFriends error: $e'); }
   }
 
   // ── Internals ──────────────────────────────────────────────────────────────
@@ -329,7 +302,7 @@ Future<bool> connectToDevice() async {
 
   void _clearCharacteristics() {
     _cSpeed = null; _cGoal = null; _cTime = null;
-    _cFriends = null; _cSos = null;
+    _cFriends = null; _cSos = null; _cSocial = null;
   }
 
   void _log(String msg) {
