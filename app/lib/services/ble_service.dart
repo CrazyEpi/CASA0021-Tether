@@ -21,6 +21,23 @@ class BleService {
 
   static const String deviceName    = 'BikeTracker_E';
 
+  // ── MANUAL HARDWARE MAPPING ────────────────────────────────────────────────
+  // Map your Firebase UIDs to the physical MAC address of the ESP32s
+  static const Map<String, String> _userToHardware = {
+    'QwTQqMw4D2NaZJqWTgQmHwaSnPe2': '1C:DB:D4:7B:62:B5', // Your ESP32 MAC
+    '3GfsCbAHgTRZOkC7eTwy30Ao0Eq2': '30:ED:AO:29:9B:21', // Casa's ESP32 MAC
+  };
+
+
+
+  String? _targetMac;
+
+  // Call this from initState in your screen: _ble.setTargetUser(widget.currentUser.id);
+  void setTargetUser(String userId) {
+    _targetMac = _userToHardware[userId];
+    _log('Targeting Hardware MAC: $_targetMac for User: $userId');
+  }
+
   // ── State ──────────────────────────────────────────────────────────────────
   BluetoothDevice? _device;
   BleStatus _status = BleStatus.disconnected;
