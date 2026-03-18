@@ -17,7 +17,7 @@ class BleService {
   static const String _charTime     = '19b10003-e8f2-537e-4f6c-d104768a1214';
   static const String _charFriends  = '19b10004-e8f2-537e-4f6c-d104768a1214';
   static const String _charSos      = '19b10005-e8f2-537e-4f6c-d104768a1214';
-  static const String _charSocial   = '19b10006-e8f2-537e-4f6c-d104768a1214'; // [NEW] Social Signal UUID
+  static const String _charSocial   = '19b10006-e8f2-537e-4f6c-d104768a1214'; 
 
   static const String deviceName    = 'BikeTracker_E';
 
@@ -30,13 +30,14 @@ class BleService {
   BluetoothCharacteristic? _cTime;
   BluetoothCharacteristic? _cFriends;
   BluetoothCharacteristic? _cSos;
-  BluetoothCharacteristic? _cSocial; // [NEW] Social Characteristic
+  BluetoothCharacteristic? _cSocial;
 
   StreamSubscription? _scanSub;
   StreamSubscription? _connSub;
   StreamSubscription? _sosSub;
 
   bool _isWritingSpeed = false; 
+  DateTime? _lastSpeedWrite; // [NEW] Stability throttle
 
   final FirestoreService _firestore = FirestoreService();
 
@@ -185,7 +186,7 @@ class BleService {
             if (uuid == _charTime)    _cTime    = c;
             if (uuid == _charFriends) _cFriends = c;
             if (uuid == _charSos)     _cSos     = c;
-            if (uuid == _charSocial)  _cSocial  = c; // [NEW]
+            if (uuid == _charSocial)  _cSocial  = c;
           }
           break;
         }
@@ -237,40 +238,60 @@ class BleService {
 
   // ── Write helpers ──────────────────────────────────────────────────────────
 
-  /// [NEW] Triggers NeoPixel animation on bike when a friend rides
   Future<void> writeNeoPixelSocialSignal() async {
-    if (_cSocial == null || !isConnected) return;
-    try {
-      // Sending 0x01 as trigger byte
-      await _cSocial!.write([0x01], withoutResponse: false);
-      _log('Social pulse sent to bike!');
-    } catch (e) {
-      _log('Social signal error: $e');
-    }
+  if (!isConnected) {
+    _log('⚠️ Social signal failed: Not connected');
+    return;
   }
+  if (_cSocial == null) {
+    _log('⚠️ Social signal failed: Characteristic _cSocial not found');
+    return;
+  }
+
+  try {
+    // Send 0x01 to trigger the "Pulse" animation on the Arduino
+    await _cSocial!.write([0x01], withoutResponse: false);
+    _log('🚀 Social pulse command sent to bike hardware!');
+  } catch (e) {
+    _log('❌ Social signal error: $e');
+  }
+}
 
   Future<void> writeSpeedDistance(double speedKmh, double distanceM) async {
     if (_cSpeed == null || !isConnected) return;
     if (_isWritingSpeed) return; 
-    _isWritingSpeed = true;
 
+    // Throttle: Don't spam the Arduino (max 2 updates per second)
+    final now = DateTime.now();
+    if (_lastSpeedWrite != null && now.difference(_lastSpeedWrite!) < const Duration(milliseconds: 500)) {
+      return; 
+    }
+
+    _isWritingSpeed = true;
+    _lastSpeedWrite = now;
+
+    // Updates Firebase
     _firestore.updateRideMetrics(speedKmh, distanceM);
 
     final payload = '${speedKmh.toStringAsFixed(1)},${distanceM.toStringAsFixed(1)}';
     try {
+      // REVISED: Changed to false to fix the "Property not supported" error
       await _cSpeed!.write(utf8.encode(payload), withoutResponse: false);
     } catch (e) {
-      _log('writeSpeedDistance error: $e');
+      _log('[BLE] writeSpeedDistance error: $e');
     } finally {
       _isWritingSpeed = false;
     }
   }
 
+  // NEW: This function triggers the NeoPixel pulse on the bike
+  
+
   Future<void> writeGoalMetres(double metres) async {
     if (_cGoal == null || !isConnected) return;
     try {
       final bd = ByteData(4)..setFloat32(0, metres, Endian.little);
-      await _cGoal!.write(bd.buffer.asUint8List().toList(), withoutResponse: false);
+      await _cGoal!.write(bd.buffer.asUint8List(), withoutResponse: false);
       _log('Goal sent: ${metres.toStringAsFixed(0)} m');
     } catch (e) { _log('writeGoal error: $e'); }
   }
@@ -289,11 +310,10 @@ class BleService {
     if (_cFriends == null || !isConnected) return;
     try {
       final bd = ByteData(4)..setInt32(0, count, Endian.little);
-      await _cFriends!.write(bd.buffer.asUint8List().toList(), withoutResponse: false);
+      await _cFriends!.write(bd.buffer.asUint8List(), withoutResponse: false);
       _log('Friends online: $count');
     } catch (e) { _log('writeFriends error: $e'); }
   }
-
   // ── Internals ──────────────────────────────────────────────────────────────
   void _updateStatus(BleStatus s) {
     _status = s;

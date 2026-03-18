@@ -164,31 +164,56 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
   // ── Firebase Sync & Listener Logic ─────────────────────────────────────────
   
   /// [NEW] Social Listener: Watches for friends riding to trigger NeoPixels
-  void _startFriendListener() {
-    _friendsSub?.cancel();
-    if (widget.currentUser.friendIds.isEmpty) return;
+Map<String, bool> _friendRidingStatus = {}; 
 
-    debugPrint("DEBUG: Starting listener for ${widget.currentUser.friendIds.length} friends.");
+void _startFriendListener() {
+  _friendsSub?.cancel();
+  if (widget.currentUser.friendIds.isEmpty) return;
+
+  debugPrint("SOCIAL: Monitoring ${widget.currentUser.friendIds.length} friends.");
+  
+  _friendsSub = _db
+      .collection('users')
+      .where(FieldPath.documentId, whereIn: widget.currentUser.friendIds)
+      .snapshots()
+      .listen((snapshot) {
     
-    _friendsSub = _db
-        .collection('users')
-        .where(FieldPath.documentId, whereIn: widget.currentUser.friendIds)
-        .snapshots()
-        .listen((snapshot) {
-      for (var change in snapshot.docChanges) {
-        // Only react to updates, not initial loads
-        if (change.type == DocumentChangeType.modified) {
-          final data = change.doc.data();
-          final bool isFriendRiding = data?['isRiding'] ?? false;
+    // 1. Update the Hardware with the total count of active friends
+    int activeCount = snapshot.docs.where((d) => d.data()['isRiding'] == true).length;
+    if (_ble.isConnected) {
+      _ble.writeOnlineFriends(activeCount);
+    }
+
+    // 2. Check for the "Starting to Ride" trigger
+    for (var change in snapshot.docChanges) {
+      final data = change.doc.data();
+      final String friendId = change.doc.id;
+      final bool currentlyRiding = data?['isRiding'] ?? false;
+      final String friendName = data?['username'] ?? "A friend";
+
+      // Only trigger if: 
+      // - Status changed from false -> true
+      // - BLE is connected
+      // - It's not the initial load of the app
+      if (_friendRidingStatus.containsKey(friendId)) {
+        bool previouslyRiding = _friendRidingStatus[friendId]!;
+        
+        if (!previouslyRiding && currentlyRiding && _ble.isConnected) {
+          debugPrint("SOCIAL: $friendName started riding! Triggering Pulse.");
+          _ble.writeNeoPixelSocialSignal(); 
           
-          if (isFriendRiding && _ble.isConnected) {
-            debugPrint("SOCIAL: Friend ${data?['username']} started riding. Pulsing bike!");
-            _ble.writeNeoPixelSocialSignal(); 
-          }
+          // Optional: Add to your BLE Log UI
+          setState(() {
+            _bleLog.insert(0, "[${_ts()}] 👥 $friendName is now live!");
+          });
         }
       }
-    });
-  }
+      
+      // Update the local tracker
+      _friendRidingStatus[friendId] = currentlyRiding;
+    }
+  }, onError: (e) => debugPrint("Firestore Listener Error: $e"));
+}
 
   /// [NEW] Push real-time data so friends can see speed and trigger NeoPixels
   Future<void> _updateFirebaseStatus(bool isLive) async {

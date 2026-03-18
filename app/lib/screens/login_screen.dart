@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart' as fb; // Alias to prevent conflict
+import 'package:firebase_auth/firebase_auth.dart' as fb; 
+import 'package:cloud_firestore/cloud_firestore.dart'; // REQUIRED for Find Friend
 import '../main.dart';
-import '../models/user.dart'; // Contains AppUser
+import '../models/user.dart'; 
 import 'main_nav_screen.dart';
 import '../services/auth_service.dart';
 
@@ -28,7 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // --- REVISED LOGIN LOGIC (Firebase + AppUser) ---
+  // --- THE CRITICAL FIX: Linking Auth to Database ---
   Future<void> _handleAuth() async {
     final email = _emailCtrl.text.trim();
     final pw    = _passwordCtrl.text;
@@ -39,12 +40,24 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     setState(() => _loading = true);
-
     fb.User? firebaseUser;
 
     try {
       if (_isSignUp) {
+        // 1. Create the user in Firebase Authentication
         firebaseUser = await _authService.signUp(email, pw);
+        
+        // 2. CREATE FIRESTORE DOCUMENT (This makes "Find Friend" work)
+        if (firebaseUser != null) {
+          await FirebaseFirestore.instance.collection('users').doc(firebaseUser.uid).set({
+            'username': email.split('@')[0], // Default username from email
+            'email': email.toLowerCase(),
+            'friendIds': [],
+            'isRiding': false,
+            'bio': 'New Cyclist',
+            'joinDate': FieldValue.serverTimestamp(),
+          });
+        }
       } else {
         firebaseUser = await _authService.signIn(email, pw);
       }
@@ -56,18 +69,17 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _loading = false);
 
     if (firebaseUser != null) {
-      // Create an AppUser object (matching your friend's model)
       final currentUser = AppUser(
         id: firebaseUser.uid,
         username: email.split('@')[0], 
         email: email,
-        joinDate: DateTime.now(),      // Required by AppUser model
-        friendIds: [],                 // Required by AppUser model
+        joinDate: DateTime.now(),      
+        friendIds: [],                 
         bio: 'New Cyclist',
         avatarUrl: '',
       );
 
-      _snack(_isSignUp ? 'Account created!' : 'Success! Welcome back.');
+      _snack(_isSignUp ? 'Account created & synced!' : 'Success! Welcome back.');
       
       Navigator.pushReplacement(
         context,
@@ -99,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               const SizedBox(height: 48),
 
-              // ---- Logo ----
+              // ---- Logo Section ----
               Row(
                 children: [
                   Container(
@@ -126,7 +138,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 52),
 
-              // ---- Headline ----
+              // ---- Headline Section ----
               Text(
                 _isSignUp ? 'Create\nAccount' : 'Welcome\nBack 👋',
                 style: const TextStyle(
@@ -145,12 +157,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 36),
 
-              // ---- Email field ----
+              // ---- Input Fields ----
               _field(_emailCtrl, 'Email', Icons.email_outlined,
                   type: TextInputType.emailAddress),
               const SizedBox(height: 14),
 
-              // ---- Password field ----
               _field(_passwordCtrl, 'Password', Icons.lock_outline,
                   obscure: _obscure,
                   suffix: IconButton(
@@ -161,7 +172,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 12),
 
-              // ---- Helper Hint ----
+              // ---- Info Hint Box ----
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -173,7 +184,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const Icon(Icons.cloud_done_outlined, color: AppTheme.green, size: 15),
                   const SizedBox(width: 8),
                   Expanded(child: Text(
-                    _isSignUp ? 'Password must be 6+ characters' : 'Connected to Firebase Auth',
+                    _isSignUp ? 'Password must be 6+ characters' : 'Connected to Firestore DB',
                     style: const TextStyle(color: Colors.white60, fontSize: 12),
                   )),
                 ]),
@@ -214,7 +225,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 48),
 
-              // ---- Feature chips ----
+              // ---- Footer Feature Chips ----
               Wrap(spacing: 8, runSpacing: 8, children: [
                 _chip(Icons.gps_fixed, 'Live GPS'),
                 _chip(Icons.cloud_upload_outlined, 'Cloud Sync'),
@@ -230,14 +241,14 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // FIXED: Pure Black Background and Green Text for the typing boxes
+  // --- Reusable UI Elements ---
   Widget _field(TextEditingController c, String hint, IconData icon,
       {TextInputType? type, bool obscure = false, Widget? suffix}) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.black, // Set to pure black
+        color: Colors.black, 
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppTheme.green.withOpacity(0.4)), // Subtle green border
+        border: Border.all(color: AppTheme.green.withOpacity(0.4)), 
       ),
       child: TextField(
         controller: c,
@@ -245,14 +256,14 @@ class _LoginScreenState extends State<LoginScreen> {
         obscureText: obscure,
         cursorColor: AppTheme.green,
         style: const TextStyle(
-          color: AppTheme.green, // Typed text is now green
+          color: AppTheme.green, 
           fontSize: 16,
           fontWeight: FontWeight.w500,
         ),
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: TextStyle(color: AppTheme.green.withOpacity(0.3)),
-          prefixIcon: Icon(icon, color: AppTheme.green, size: 20), // Green icon
+          prefixIcon: Icon(icon, color: AppTheme.green, size: 20), 
           suffixIcon: suffix,
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
