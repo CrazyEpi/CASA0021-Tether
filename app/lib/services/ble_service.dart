@@ -10,7 +10,8 @@ import 'firestore_service.dart'; // Cloud Sync Service
 enum BleStatus { disconnected, scanning, connecting, connected, error }
 
 class BleService {
-  // ── UUIDs ──────────────────────────────────────────────────────────────────
+  // ── BLE UUID CONFIGURATION ────────────────────────────────────────────────
+  // These UUIDs must match the ones defined in your Arduino/ESP32 sketch
   static const String _serviceUuid  = '19b10000-e8f2-537e-4f6c-d104768a1214';
   static const String _charSpeed    = '19b10001-e8f2-537e-4f6c-d104768a1214';
   static const String _charGoal     = '19b10002-e8f2-537e-4f6c-d104768a1214';
@@ -21,27 +22,26 @@ class BleService {
 
   static const String deviceName    = 'BikeTracker_E';
 
-  // ── MANUAL HARDWARE MAPPING ────────────────────────────────────────────────
-  // Map your Firebase UIDs to the physical MAC address of the ESP32s
+  // ── HARDWARE MAPPING ──────────────────────────────────────────────────────
+  // Maps Firebase UIDs to physical ESP32 MAC addresses for specific users
   static const Map<String, String> _userToHardware = {
-    'QwTQqMw4D2NaZJqWTgQmHwaSnPe2': '1C:DB:D4:7B:62:B5', // Your ESP32 MAC
-    '3GfsCbAHgTRZOkC7eTwy30Ao0Eq2': '30:ED:AO:29:9B:21', // Casa's ESP32 MAC
+    'QwTQqMw4D2NaZJqWTgQmHwaSnPe2': '1C:DB:D4:7B:62:B5', // Gilang's ESP32
+    '3GfsCbAHgTRZOkC7eTwy30Ao0Eq2': '30:ED:AO:29:9B:21', // Casa's ESP32
   };
-
-
 
   String? _targetMac;
 
-  // Call this from initState in your screen: _ble.setTargetUser(widget.currentUser.id);
+  /// Sets the hardware target based on the currently logged-in user
   void setTargetUser(String userId) {
     _targetMac = _userToHardware[userId];
     _log('Targeting Hardware MAC: $_targetMac for User: $userId');
   }
 
-  // ── State ──────────────────────────────────────────────────────────────────
+  // ── STATE MANAGEMENT ──────────────────────────────────────────────────────
   BluetoothDevice? _device;
   BleStatus _status = BleStatus.disconnected;
 
+  // Internal references to BLE Characteristics
   BluetoothCharacteristic? _cSpeed;
   BluetoothCharacteristic? _cGoal;
   BluetoothCharacteristic? _cTime;
@@ -49,19 +49,23 @@ class BleService {
   BluetoothCharacteristic? _cSos;
   BluetoothCharacteristic? _cSocial;
 
+  // Subscriptions to manage data streams and connection listeners
   StreamSubscription? _scanSub;
   StreamSubscription? _connSub;
   StreamSubscription? _sosSub;
 
+  // Throttling variables to prevent flooding the BLE write buffer
   bool _isWritingSpeed = false; 
-  DateTime? _lastSpeedWrite; // [NEW] Stability throttle
+  DateTime? _lastSpeedWrite; 
 
   final FirestoreService _firestore = FirestoreService();
 
+  // Broadcast controllers to push updates to the UI
   final _statusCtrl = StreamController<BleStatus>.broadcast();
   final _sosCtrl    = StreamController<bool>.broadcast();
   final _logCtrl    = StreamController<String>.broadcast();
 
+  // Public Getters for Streams
   Stream<BleStatus> get statusStream => _statusCtrl.stream;
   Stream<bool>      get sosStream     => _sosCtrl.stream;
   Stream<String>    get logStream     => _logCtrl.stream;
@@ -69,12 +73,14 @@ class BleService {
   BleStatus get status => _status;
   bool get isConnected => _status == BleStatus.connected;
 
+  // Singleton instance to ensure only one BleService exists in the app
   static final BleService _instance = BleService._internal();
   factory BleService() => _instance;
   BleService._internal();
 
-  // ── Public API ─────────────────────────────────────────────────────────────
+  // ── PERMISSIONS & CONNECTION LOGIC ────────────────────────────────────────
 
+  /// Requests Android-specific BLE and Location permissions
   Future<bool> requestPermissions() async {
     if (!Platform.isAndroid) return true;
     final statuses = await [
@@ -85,15 +91,18 @@ class BleService {
     return statuses.values.every((s) => s.isGranted || s.isLimited);
   }
 
+  /// Scans for and establishes a connection with the bike hardware
   Future<bool> connectToDevice() async {
     if (_status == BleStatus.connected) return true;
 
+    // Check if Bluetooth is available on the hardware
     if (await FlutterBluePlus.isSupported == false) {
       _log('⚠️ Hardware does not support Bluetooth');
       _updateStatus(BleStatus.error);
       return false;
     }
 
+    // Automatically turn on Bluetooth for Android users
     if (Platform.isAndroid && FlutterBluePlus.adapterStateNow != BluetoothAdapterState.on) {
       await FlutterBluePlus.turnOn();
     }
@@ -113,6 +122,7 @@ class BleService {
     final completer = Completer<BluetoothDevice?>();
     Timer? timeoutTimer;
 
+    // Listen for scan results and match by name or Service UUID
     _scanSub = FlutterBluePlus.onScanResults.listen((results) {
       for (final r in results) {
         bool matchName = r.device.advName == deviceName || 
@@ -142,6 +152,7 @@ class BleService {
       _log('❌ Scan failed: $e');
     }
 
+    // Set 10-second timeout for scanning
     timeoutTimer = Timer(const Duration(seconds: 10), () {
       if (!completer.isCompleted) {
         _log('⏱️ Scan timeout');
@@ -161,6 +172,7 @@ class BleService {
     return await _connect(device);
   }
 
+  /// Internal connection handler for a specific Bluetooth device
   Future<bool> _connect(BluetoothDevice device) async {
     _updateStatus(BleStatus.connecting);
     _device = device;
@@ -175,10 +187,12 @@ class BleService {
 
     await Future.delayed(const Duration(milliseconds: 600));
 
+    // Request higher MTU for faster data transfer on Android
     if (Platform.isAndroid) {
       try { await device.requestMtu(251); } catch (_) {}
     }
 
+    // Monitor connection state for unexpected disconnects
     _connSub = device.connectionState.listen((state) {
       if (state == BluetoothConnectionState.disconnected) {
         _log('Device disconnected');
@@ -190,6 +204,7 @@ class BleService {
     return await _discoverServices(device);
   }
 
+  /// Discovers GATT services and assigns relevant characteristics
   Future<bool> _discoverServices(BluetoothDevice device) async {
     try {
       final services = await device.discoverServices();
@@ -220,6 +235,7 @@ class BleService {
       return false;
     }
 
+    // Setup listener for hardware-triggered SOS alerts
     if (_cSos != null) {
       try {
         await _cSos!.setNotifyValue(true);
@@ -238,11 +254,12 @@ class BleService {
     _log('Connected to $deviceName');
 
     await Future.delayed(const Duration(milliseconds: 200));
-    await syncTime();
+    await syncTime(); // Sync phone clock to bike display
 
     return true;
   }
 
+  /// Fully terminates the connection and clears resources
   void disconnect() {
     _sosSub?.cancel();
     _connSub?.cancel();
@@ -253,32 +270,31 @@ class BleService {
     _log('Disconnected');
   }
 
-  // ── Write helpers ──────────────────────────────────────────────────────────
+  // ── DATA TRANSMISSION HELPERS (WRITE) ─────────────────────────────────────
 
+  /// Triggers a social notification pulse on the bike hardware
   Future<void> writeNeoPixelSocialSignal() async {
-  if (!isConnected) {
-    _log('⚠️ Social signal failed: Not connected');
-    return;
-  }
-  if (_cSocial == null) {
-    _log('⚠️ Social signal failed: Characteristic _cSocial not found');
-    return;
+    if (!isConnected || _cSocial == null) {
+      _log('⚠️ Social signal failed: Not connected or characteristic missing');
+      return;
+    }
+
+    try {
+      // 0x01 command triggers the pre-defined animation in ESP32
+      await _cSocial!.write([0x01], withoutResponse: false);
+      _log('🚀 Social pulse command sent to bike hardware!');
+    } catch (e) {
+      _log('❌ Social signal error: $e');
+    }
   }
 
-  try {
-    // Send 0x01 to trigger the "Pulse" animation on the Arduino
-    await _cSocial!.write([0x01], withoutResponse: false);
-    _log('🚀 Social pulse command sent to bike hardware!');
-  } catch (e) {
-    _log('❌ Social signal error: $e');
-  }
-}
-
-  Future<void> writeSpeedDistance(double speedKmh, double distanceM) async {
+  /// Syncs speed and distance metrics to both Firebase and the bike hardware
+  /// [goalM] is optional (defaults to 10km) to ensure backward compatibility with the UI
+  Future<void> writeSpeedDistance(double speedKmh, double distanceM, [double goalM = 10000.0]) async {
     if (_cSpeed == null || !isConnected) return;
     if (_isWritingSpeed) return; 
 
-    // Throttle: Don't spam the Arduino (max 2 updates per second)
+    // Throttling: Prevents updates faster than twice per second (500ms)
     final now = DateTime.now();
     if (_lastSpeedWrite != null && now.difference(_lastSpeedWrite!) < const Duration(milliseconds: 500)) {
       return; 
@@ -287,12 +303,12 @@ class BleService {
     _isWritingSpeed = true;
     _lastSpeedWrite = now;
 
-    // Updates Firebase
-    _firestore.updateRideMetrics(speedKmh, distanceM);
+    // 1. Synchronize data to Firestore Cloud
+    _firestore.updateRideMetrics(speedKmh, distanceM, goalM);
 
+    // 2. Synchronize data to the Physical Bike Dashboard
     final payload = '${speedKmh.toStringAsFixed(1)},${distanceM.toStringAsFixed(1)}';
     try {
-      // REVISED: Changed to false to fix the "Property not supported" error
       await _cSpeed!.write(utf8.encode(payload), withoutResponse: false);
     } catch (e) {
       _log('[BLE] writeSpeedDistance error: $e');
@@ -301,9 +317,7 @@ class BleService {
     }
   }
 
-  // NEW: This function triggers the NeoPixel pulse on the bike
-  
-
+  /// Updates the ride goal (meters) on the hardware
   Future<void> writeGoalMetres(double metres) async {
     if (_cGoal == null || !isConnected) return;
     try {
@@ -313,6 +327,7 @@ class BleService {
     } catch (e) { _log('writeGoal error: $e'); }
   }
 
+  /// Synchronizes smartphone system time to the bike display clock
   Future<void> syncTime() async {
     if (_cTime == null || !isConnected) return;
     try {
@@ -323,6 +338,7 @@ class BleService {
     } catch (e) { _log('syncTime error: $e'); }
   }
 
+  /// Sends the number of online friends to the bike hardware dashboard
   Future<void> writeOnlineFriends(int count) async {
     if (_cFriends == null || !isConnected) return;
     try {
@@ -331,22 +347,28 @@ class BleService {
       _log('Friends online: $count');
     } catch (e) { _log('writeFriends error: $e'); }
   }
-  // ── Internals ──────────────────────────────────────────────────────────────
+
+  // ── INTERNAL UTILITY METHODS ──────────────────────────────────────────────
+
+  /// Updates local status and broadcasts it to UI listeners
   void _updateStatus(BleStatus s) {
     _status = s;
     _statusCtrl.add(s);
   }
 
+  /// Resets all characteristic references on disconnect
   void _clearCharacteristics() {
     _cSpeed = null; _cGoal = null; _cTime = null;
     _cFriends = null; _cSos = null; _cSocial = null;
   }
 
+  /// Centralized logging for debugging
   void _log(String msg) {
     debugPrint('[BLE] $msg');
     _logCtrl.add(msg);
   }
 
+  /// Resource cleanup for when the service is destroyed
   void dispose() {
     disconnect();
     _statusCtrl.close();
