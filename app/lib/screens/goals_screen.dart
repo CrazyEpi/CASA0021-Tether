@@ -3,7 +3,9 @@ import '../main.dart';
 import '../models/user.dart';
 import '../models/trip_goal.dart';
 import '../data/mock_data.dart';
+import '../services/ble_service.dart';
 import 'map_navigation_screen.dart';
+import 'developer_console.dart'; // [新增] 引入开发者控制台
 
 class GoalsScreen extends StatefulWidget {
   final AppUser currentUser;
@@ -19,7 +21,6 @@ class _GoalsScreenState extends State<GoalsScreen>
   late MonthlyGoal _monthlyGoal;
   TripGoal? _tripGoal;
 
-  // Edit monthly goals
   bool _isEditing = false;
   final _distanceCtrl  = TextEditingController();
   final _ridesCtrl     = TextEditingController();
@@ -59,9 +60,13 @@ class _GoalsScreenState extends State<GoalsScreen>
           int.tryParse(_minutesCtrl.text) ?? _monthlyGoal.targetActiveMinutes;
       _isEditing = false;
     });
+
+    // [核心修复] 将 Monthly 里填写的最新距离，作为设备目标同步给 ESP32！
+    BleService().writeGoalKm(_monthlyGoal.targetDistanceKm);
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Monthly goals saved!'),
+        content: const Text('Monthly goals saved and synced to bike!'),
         backgroundColor: AppTheme.greenDark,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -78,6 +83,9 @@ class _GoalsScreenState extends State<GoalsScreen>
           onGoalSet: (TripGoal goal) {
             setState(() => _tripGoal = goal);
             _tabController.animateTo(0);
+            
+            BleService().writeGoalKm(goal.targetDistanceKm);
+
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text("Trip goal set: ${goal.destinationName}"),
@@ -106,7 +114,16 @@ class _GoalsScreenState extends State<GoalsScreen>
                 fontWeight: FontWeight.w800,
                 fontSize: 22)),
         actions: [
-          // Edit button only shown on Monthly tab
+          IconButton(
+            icon: const Icon(Icons.build_circle, color: Colors.grey),
+            tooltip: 'Dev Console',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const DeveloperConsole()),
+              );
+            },
+          ),
           AnimatedBuilder(
             animation: _tabController,
             builder: (_, __) {
@@ -161,6 +178,7 @@ class _GoalsScreenState extends State<GoalsScreen>
                     _tripGoal!.completed = true;
                   }
                 });
+                BleService().writeSpeedDistance(15.0, _tripGoal!.currentDistanceKm, goalKm: _tripGoal!.targetDistanceKm);
               }
             },
           ),
@@ -179,7 +197,6 @@ class _GoalsScreenState extends State<GoalsScreen>
 }
 
 // ─── TODAY'S RIDE TAB ─────────────────────────────────────────────────────────
-
 class _TodayRideTab extends StatelessWidget {
   final TripGoal? tripGoal;
   final VoidCallback onPlanRide;
@@ -206,7 +223,6 @@ class _TodayRideTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 16),
-          // Illustration card
           Container(
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
@@ -264,25 +280,23 @@ class _TodayRideTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-
-          // How it works
           const Text('How it works',
               style: TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 16,
                   color: AppTheme.black)),
           const SizedBox(height: 12),
-          _HowItWorksStep(
+          const _HowItWorksStep(
               number: '1',
               icon: Icons.search,
               title: 'Search destination',
               desc: 'Type any location on the map'),
-          _HowItWorksStep(
+          const _HowItWorksStep(
               number: '2',
               icon: Icons.route,
               title: 'Get cycling route',
               desc: 'Distance is calculated via Google Maps'),
-          _HowItWorksStep(
+          const _HowItWorksStep(
               number: '3',
               icon: Icons.flag,
               title: 'Set as today\'s goal',
@@ -302,7 +316,6 @@ class _TodayRideTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Main goal card
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
@@ -355,8 +368,6 @@ class _TodayRideTab extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 20),
-
-                // Progress bar
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: LinearProgressIndicator(
@@ -389,8 +400,6 @@ class _TodayRideTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-
-          // Stats row
           Row(
             children: [
               Expanded(
@@ -419,8 +428,6 @@ class _TodayRideTab extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-
-          // Simulate progress (demo button)
           if (!isComplete)
             OutlinedButton.icon(
               onPressed: onSimulateProgress,
@@ -435,7 +442,6 @@ class _TodayRideTab extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14)),
               ),
             ),
-
           if (isComplete) ...[
             Container(
               padding: const EdgeInsets.all(20),
@@ -467,9 +473,7 @@ class _TodayRideTab extends StatelessWidget {
               ),
             ),
           ],
-
           const SizedBox(height: 16),
-          // Plan new ride button
           TextButton.icon(
             onPressed: onPlanRide,
             icon: const Icon(Icons.map_outlined, size: 18),
@@ -579,7 +583,6 @@ class _StatChip extends StatelessWidget {
 }
 
 // ─── MONTHLY TAB ─────────────────────────────────────────────────────────────
-
 class _MonthlyTab extends StatelessWidget {
   final MonthlyGoal goal;
   final bool isEditing;
@@ -610,7 +613,6 @@ class _MonthlyTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Month header
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -658,8 +660,6 @@ class _MonthlyTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-
-          // Goal cards
           _GoalCard(
             icon: Icons.straighten,
             title: 'Distance',
@@ -708,8 +708,6 @@ class _MonthlyTab extends StatelessWidget {
             decimals: 0,
           ),
           const SizedBox(height: 20),
-
-          // Weekly bar chart
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
@@ -733,8 +731,6 @@ class _MonthlyTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-
-          // Tip
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
