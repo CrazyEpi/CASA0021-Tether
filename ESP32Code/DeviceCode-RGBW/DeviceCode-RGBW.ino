@@ -12,8 +12,8 @@
 #define NUMPIXELS  24   // 24 LED Ring
 #define BOOT_PIN   0
 
-// [已修改] 改回 RGB 格式
-Adafruit_NeoPixel pixels(NUMPIXELS, LED_PIN, NEO_GRB + NEO_KHZ800);
+// RGBW LED Ring
+Adafruit_NeoPixel pixels(NUMPIXELS, LED_PIN, NEO_GRBW + NEO_KHZ800);
 XPowersPMU power;
 TouchDrvCST92xx touch;
 
@@ -402,7 +402,7 @@ void loop() {
     
     // Light Control Router
     if (isEmergency) {
-       if ((millis() / 300) % 2 == 0) pixels.fill(pixels.Color(200, 0, 0));
+       if ((millis() / 300) % 2 == 0) pixels.fill(pixels.Color(200, 0, 0, 0));
        else pixels.clear();
        pixels.show();
     } 
@@ -412,7 +412,7 @@ void loop() {
     }
     else if (isPhoneConnected) {
        if (millis() - connectionTimestamp < 3000) {
-         pixels.fill(pixels.Color(0, 150, 0)); pixels.show();
+         pixels.fill(pixels.Color(0, 150, 0, 0)); pixels.show();
        } else {
          updateLED_SmartProgress(); 
        }
@@ -437,7 +437,7 @@ void updateLED_SmartProgress() {
   if (onlineFriends == 0) {
     int ledsToLight = round(myProg * NUMPIXELS);
     for (int i = 0; i < NUMPIXELS; i++) {
-      if (i < ledsToLight) pixels.setPixelColor(i, pixels.Color(0, 0, 150));
+      if (i < ledsToLight) pixels.setPixelColor(i, pixels.Color(0, 0, 150, 0));
     }
   } else {
     float frProg = friendProgress;
@@ -449,10 +449,10 @@ void updateLED_SmartProgress() {
     int frLedsToLight = round(frProg * halfLeds);
 
     for (int i = 0; i < halfLeds; i++) {
-      if (i < myLedsToLight) pixels.setPixelColor(i, pixels.Color(0, 0, 150));
+      if (i < myLedsToLight) pixels.setPixelColor(i, pixels.Color(0, 0, 150, 0));
     }
     for (int i = 0; i < halfLeds; i++) {
-      if (i < frLedsToLight) pixels.setPixelColor(i + halfLeds, pixels.Color(150, 0, 150));
+      if (i < frLedsToLight) pixels.setPixelColor(i + halfLeds, pixels.Color(150, 0, 150, 0));
     }
   }
   
@@ -460,7 +460,7 @@ void updateLED_SmartProgress() {
 }
 
 void updateLED_Searching_Yellow() {
-  pixels.fill(pixels.Color(100, 100, 0)); pixels.show();
+  pixels.fill(pixels.Color(100, 100, 0, 0)); pixels.show();
 }
 
 void updateLED_Social_Pulse() {
@@ -472,9 +472,9 @@ void updateLED_Social_Pulse() {
   pixels.clear();
   for (int i = 0; i < NUMPIXELS; i++) {
     if (i == offset || i == (offset + NUMPIXELS/2) % NUMPIXELS) {
-      pixels.setPixelColor(i, pixels.Color(0, 0, 0));
+      pixels.setPixelColor(i, pixels.Color(0, 0, 0, 0));
     } else {
-      pixels.setPixelColor(i, pixels.Color(0, brightness, brightness));
+      pixels.setPixelColor(i, pixels.Color(0, brightness, brightness, 0));
     }
   }
   pixels.show();
