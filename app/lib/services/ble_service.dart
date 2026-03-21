@@ -20,6 +20,9 @@ class BleService {
 
   static const String deviceName    = 'BikeTracker_E';
 
+  // [新增] 全局开发者模式覆写开关，用于阻断 Firebase 数据覆盖
+  bool devModeOverride = false;
+
   BluetoothDevice? _device;
   BleStatus _status = BleStatus.disconnected;
 
@@ -44,8 +47,8 @@ class BleService {
   final _logCtrl    = StreamController<String>.broadcast();
 
   Stream<BleStatus> get statusStream => _statusCtrl.stream;
-  Stream<bool>      get sosStream     => _sosCtrl.stream;
-  Stream<String>    get logStream     => _logCtrl.stream;
+  Stream<bool>      get sosStream    => _sosCtrl.stream;
+  Stream<String>    get logStream    => _logCtrl.stream;
 
   BleStatus get status => _status;
   bool get isConnected => _status == BleStatus.connected;
@@ -207,7 +210,6 @@ class BleService {
     try { await _cSocial!.write([0x01], withoutResponse: false); } catch (e) {}
   }
 
-  // [协议升级] 组合自己和好友的绝对数值发给设备
   Future<void> writeSpeedDistance(double speedKmh, double distanceKm, 
       {double goalKm = 10.0, double friendDistKm = 0.0, double friendGoalKm = 0.0}) async {
     if (_cSpeed == null || !isConnected) return;
@@ -220,7 +222,6 @@ class BleService {
     _lastSpeedWrite = now;
     _firestore.updateRideMetrics(speedKmh, distanceKm, goalKm);
 
-    // 四段式格式: "速度,自己距离,好友距离,好友目标"
     final payload = '${speedKmh.toStringAsFixed(1)},${distanceKm.toStringAsFixed(2)},${friendDistKm.toStringAsFixed(2)},${friendGoalKm.toStringAsFixed(2)}';
     try {
       await _cSpeed!.write(utf8.encode(payload), withoutResponse: false);

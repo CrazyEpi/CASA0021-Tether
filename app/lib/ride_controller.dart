@@ -11,12 +11,16 @@ class RideController {
   // 社交“锁”逻辑：防抖动
   String? _lockedFriendId;
   
-  // [新增] 初次连接光效锁，防止 Firebase 数据流频繁触发动画
+  // 初次连接光效锁，防止 Firebase 数据流频繁触发动画
   bool _hasSentInitialPulse = false;
   
   // 保存好友的绝对物理数据供 BLE 打包使用
   double currentFriendDistance = 0.0;
   double currentFriendGoal = 10.0;
+
+  // [新增] 暴露一个 Stream 给 UI，用于接收好友的 SOS 警报
+  final StreamController<String> _friendSosController = StreamController<String>.broadcast();
+  Stream<String> get friendSosStream => _friendSosController.stream;
 
   /// 当有好友加入骑行大厅时调用
   void onFriendOnline(String friendUserId) {
@@ -37,13 +41,21 @@ class RideController {
     _hasSentInitialPulse = false;
 
     _friendSubscription = _db.streamFriendProgress(friendUserId).listen((data) {
+      // [新增] 如果开启了开发者模式的覆写开关，则忽略 Firebase 的真实数据流
+      if (_ble.devModeOverride) return;
+
       // 解析来自 Firebase 的绝对数值
       if (data.containsKey('distance')) {
-        currentFriendDistance = data['distance'] ?? 0.0;
+        currentFriendDistance = data['distance']?.toDouble() ?? 0.0;
       }
       if (data.containsKey('goal')) {
-        currentFriendGoal = data['goal'] ?? 10.0;
+        currentFriendGoal = data['goal']?.toDouble() ?? 10.0;
         if (currentFriendGoal <= 0) currentFriendGoal = 10.0; // 保护除 0 报错
+      }
+
+      // [新增] 监听好友的 SOS 状态，并通过 Stream 广播给 UI 层
+      if (data.containsKey('sosActive') && data['sosActive'] == true) {
+        _friendSosController.add(friendUserId);
       }
 
       // [核心修复] 只在初次成功获取到好友数据时，发送一次青色流水灯触发指令

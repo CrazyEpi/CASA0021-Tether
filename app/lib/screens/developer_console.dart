@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:math'; // [新增] 引入数学库用于生成随机数
+import 'dart:math'; 
 import '../services/ble_service.dart';
 
 class DeveloperConsole extends StatefulWidget {
@@ -11,7 +11,7 @@ class DeveloperConsole extends StatefulWidget {
 
 class _DeveloperConsoleState extends State<DeveloperConsole> {
   final BleService _ble = BleService();
-  final Random _random = Random(); // [新增] 随机数生成器
+  final Random _random = Random(); 
 
   // --- Mock Data States ---
   double simSpeed = 15.0;
@@ -83,6 +83,28 @@ class _DeveloperConsoleState extends State<DeveloperConsole> {
                 ),
                 const SizedBox(height: 20),
 
+                // --- 0. Developer Override Settings [新增区块] ---
+                _buildSectionHeader(' Developer Settings'),
+                Card(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: SwitchListTile(
+                      title: const Text('Dev Mode Override', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                      subtitle: const Text('Block incoming Firebase data to test manual inputs'),
+                      activeColor: Colors.orange,
+                      value: _ble.devModeOverride,
+                      onChanged: (val) {
+                        setState(() => _ble.devModeOverride = val);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(val ? 'Override Enabled: Firebase blocked' : 'Override Disabled: Firebase active')),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
                 // --- 1. My Ride Simulation ---
                 _buildSectionHeader(' My Ride Simulation'),
                 Card(
@@ -134,7 +156,6 @@ class _DeveloperConsoleState extends State<DeveloperConsole> {
                             Expanded(
                               child: ElevatedButton(
                                 onPressed: () {
-                                  // [修改] 增加 1.x km，其中 x 是 0-9 的随机数
                                   double randomDecimal = _random.nextInt(10) / 10.0;
                                   setState(() => simMyDist += (1.0 + randomDecimal));
                                   _syncToHardware();
@@ -202,12 +223,9 @@ class _DeveloperConsoleState extends State<DeveloperConsole> {
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(backgroundColor: Colors.purple, foregroundColor: Colors.white),
                                 onPressed: () {
-                                  // [修改] 增加 1.x km，其中 x 是 0-9 的随机数
                                   double randomDecimal = _random.nextInt(10) / 10.0;
                                   setState(() => simFriendDist += (1.0 + randomDecimal));
                                   _syncToHardware();
-                                  // [已修复] 移除了之前这里的 _ble.writeNeoPixelSocialSignal(); 
-                                  // 现在增加距离只会静默更新屏幕和灯环比例，不会触发呼吸灯效
                                 },
                                 child: const Text('+ 1.x km'),
                               ),
@@ -223,7 +241,6 @@ class _DeveloperConsoleState extends State<DeveloperConsole> {
                             label: const Text('Send Social Pulse (Cyan Effect)'),
                             style: OutlinedButton.styleFrom(foregroundColor: Colors.cyan.shade800),
                             onPressed: () {
-                              // 这个按钮专门留给你用来测试特效
                               if (_ble.isConnected) _ble.writeNeoPixelSocialSignal();
                             },
                           ),
