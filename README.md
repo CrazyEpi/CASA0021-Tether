@@ -1,6 +1,9 @@
 # CASA0021-Tether
 ### Ride together. Stay aware. Stay safe.
 
+![_DSC6421](https://github.com/user-attachments/assets/64856135-aaba-4be1-903a-0eef8439fd08)
+
+
 Tether is a smart cycling companion system designed to bring **real-time awareness**, **social connection**, and **safety feedback** into the riding experience.  
 By combining a mobile app, Bluetooth Low Energy (BLE) communication, and a custom ESP32-based hardware interface, Tether transforms ride data into simple, glanceable signals that support cyclists on the move.
 
@@ -74,7 +77,7 @@ The rider can instantly understand personal progress, speed, and system state fr
 The system makes shared riding more visible by showing comparative progress between riders.
 
 ### 3. Safety support
-Emergency signalling and status indicators help communicate urgent situations more clearly during use.
+The SOS function enables user to send out emergency signal fast and easy.
 
 ---
 
@@ -89,14 +92,16 @@ To begin using Tether, users will need:
 - the required hardware components assembled and powered  
 
 ### Setup
-### Setup
 
 Getting Tether up and running requires assembling the hardware, flashing the firmware to the ESP32-S3, and deploying the Flutter mobile app.
+
+<img width="9198" height="3292" alt="_DSC6442-pic" src="https://github.com/user-attachments/assets/bcb2bc7e-c273-43fe-8f79-da14caafdbfc" />
+
 
 #### Phase 1: Hardware Assembly
 1. Connect the **24-LED NeoPixel Ring** to the ESP32-S3 board (Data pin mapped to `GPIO 16`, with 3.3V/5V and GND connected appropriately).
 2. Connect the Battery to the board using the 1.25mm pitch 2-pin cable.
-3. Secure the components properly mounted inside the 3D-printed enclosure.
+3. Secure the components properly mounted inside the 3D-printed enclosure by matching numbers shown in above picture. Specifically, you need to match the three copper nuts with three holder, and then put the dupont connector in the rectangular slot.
 
 #### Phase 2: ESP32 Firmware Setup (Arduino IDE)
 The Waveshare ESP32-S3-Touch-AMOLED-1.75 requires specific libraries and configurations to drive the screen, touch interface, and power management correctly. 
