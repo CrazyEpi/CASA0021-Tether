@@ -1,5 +1,4 @@
 # CASA0021-Tether
-# Tether  
 ### Ride together. Stay aware. Stay safe.
 
 Tether is a smart cycling companion system designed to bring **real-time awareness**, **social connection**, and **safety feedback** into the riding experience.  
