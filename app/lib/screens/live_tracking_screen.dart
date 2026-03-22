@@ -10,6 +10,7 @@ import '../models/user.dart';
 import '../services/ble_service.dart';
 import '../services/location_service.dart';
 import '../services/background_service.dart'; 
+import '../services/notification_service.dart'; // Notifications
 
 // ============================================================
 // Live GPS Tracking Screen (Android)
@@ -43,7 +44,6 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
   int _elapsedSeconds = 0;
   List<GpsPoint> _trackPoints = [];
 
-  // [修复核心 1] 增加变量用于保存从 Firebase 获取的好友进度，传给硬件
   double _friendDistance = 0.0;
   double _friendGoal = 10.0; 
 
@@ -60,7 +60,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
   // Social Listener 
   StreamSubscription? _friendsSub;
   Map<String, bool> _friendRidingStatus = {}; 
-  Set<String> _activeSosFriends = {}; // 防止重复弹出同一个好友的SOS警告
+  Set<String> _activeSosFriends = {}; 
 
   // Demo / simulation mode 
   bool _isSimulating = false;
@@ -85,6 +85,9 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
   @override
   void initState() {
     super.initState();
+    
+    NotificationService.init();
+
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 1),
@@ -111,11 +114,10 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
       }
     });
 
-    // [修复核心 2] 完善本地 SOS 监听：不仅本地弹窗，还要把自己的 SOS 状态同步到云端
     _sosSub = _ble.sosStream.listen((triggered) {
       if (!mounted) return;
       if (triggered) {
-        _showSosDialog();
+        _showSosDialog(); // Pop up alert for own SOS
         _db.collection('users').doc(widget.currentUser.id).set({
           'sosActive': true,
           'lastUpdate': FieldValue.serverTimestamp(),
@@ -167,63 +169,82 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
   }
 
   // ── Firebase Sync & Listener Logic ─────────────────────────────────────────
-
-  // [修复核心 3] 全面升级好友监听器：解析距离数据 & 监听好友SOS
-  void _startFriendListener() {
+  // Fetch latest friend data from cloud and decouple from hardware sync
+  Future<void> _startFriendListener() async {
     _friendsSub?.cancel();
-    if (widget.currentUser.friendIds.isEmpty) return;
 
-    debugPrint("SOCIAL: Monitoring ${widget.currentUser.friendIds.length} friends.");
-    
-    _friendsSub = _db
-        .collection('users')
-        .where(FieldPath.documentId, whereIn: widget.currentUser.friendIds)
-        .snapshots()
-        .listen((snapshot) {
+    try {
+      // update friend list
+      final myDoc = await _db.collection('users').doc(widget.currentUser.id).get();
+      final List<dynamic> latestFriendIds = myDoc.data()?['friendIds'] ?? [];
+
+      if (latestFriendIds.isEmpty) return;
+
+      debugPrint("SOCIAL: Monitoring ${latestFriendIds.length} friends.");
       
-      int activeCount = snapshot.docs.where((d) => d.data()['isRiding'] == true).length;
-      if (_ble.isConnected) {
-        _ble.writeOnlineFriends(activeCount);
-      }
+      // listen to firebase
+      _friendsSub = _db
+          .collection('users')
+          .where(FieldPath.documentId, whereIn: latestFriendIds)
+          .snapshots()
+          .listen((snapshot) {
+        
+        int activeCount = snapshot.docs.where((d) => d.data()['isRiding'] == true).length;
+        if (_ble.isConnected) {
+          _ble.writeOnlineFriends(activeCount);
+        }
 
-      for (var change in snapshot.docChanges) {
-        final data = change.doc.data();
-        final String friendId = change.doc.id;
-        final bool currentlyRiding = data?['isRiding'] ?? false;
-        final String friendName = data?['username'] ?? "A friend";
+        for (var change in snapshot.docChanges) {
+          final data = change.doc.data();
+          final String friendId = change.doc.id;
+          final bool currentlyRiding = data?['isRiding'] ?? false;
+          final String friendName = data?['username'] ?? "A friend";
 
-        // 1. 监听好友的 SOS 警报 (带防重复弹窗处理)
-        final bool friendSosActive = data?['sosActive'] ?? false;
-        if (friendSosActive) {
-          if (!_activeSosFriends.contains(friendId)) {
-            _activeSosFriends.add(friendId);
-            _showFriendSosDialog(friendName);
+          // SOS listener
+          final bool friendSosActive = data?['sosActive'] ?? false;
+          if (friendSosActive) {
+            if (!_activeSosFriends.contains(friendId)) {
+              _activeSosFriends.add(friendId);
+              NotificationService.showSosNotification(friendName);
+            }
+          } else {
+            _activeSosFriends.remove(friendId);
           }
-        } else {
-          _activeSosFriends.remove(friendId);
-        }
 
-        // 2. 解析好友的骑行进度数据
-        if (currentlyRiding && data?['live_stats'] != null) {
-          _friendDistance = (data!['live_stats']['dist'] ?? 0.0).toDouble();
-          _friendGoal = (data['live_stats']['goal'] ?? 10.0).toDouble();
-        } else {
-          _friendDistance = 0.0; // 如果好友没骑车，距离归零
-        }
+          // Parse friend's progress data
+          if (currentlyRiding && data?['live_stats'] != null) {
+            _friendDistance = (data!['live_stats']['dist'] ?? 0.0).toDouble();
+            _friendGoal = (data['live_stats']['goal'] ?? 10.0).toDouble();
+          } else {
+            _friendDistance = 0.0; 
+          }
 
-        // 处理上线呼吸灯提示
-        if (_friendRidingStatus.containsKey(friendId)) {
-          bool previouslyRiding = _friendRidingStatus[friendId]!;
+          // Trigger effect light effect when a friend comes online ？
+          bool previouslyRiding = _friendRidingStatus[friendId] ?? false;
           if (!previouslyRiding && currentlyRiding && _ble.isConnected) {
             _ble.writeNeoPixelSocialSignal(); 
             setState(() {
               _bleLog.insert(0, "[${_ts()}] 👥 $friendName is now live!");
             });
           }
+          _friendRidingStatus[friendId] = currentlyRiding;
         }
-        _friendRidingStatus[friendId] = currentlyRiding;
-      }
-    }, onError: (e) => debugPrint("Firestore Listener Error: $e"));
+
+        // // Push latest friend progress to ESP32 immediately via BLE upon cloud update
+        if (_ble.isConnected) {
+          _ble.writeSpeedDistance(
+            _currentSpeed,         // 0 if not currently riding
+            _totalDistance * 1000,
+            friendDistKm: _friendDistance,
+            friendGoalKm: _friendGoal,
+          );
+        }
+
+      }, onError: (e) => debugPrint("Firestore Listener Error: $e"));
+
+    } catch (e) {
+      debugPrint("SOCIAL Error: $e");
+    }
   }
 
   Future<void> _updateFirebaseStatus(bool isLive) async {
@@ -235,7 +256,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
           'lat': _currentLat,
           'lng': _currentLng,
           'dist': _totalDistance,
-          'goal': 10.0, // 默认传入一个目标，防止好友端除以 0
+          'goal': 10.0, 
           'lastUpdate': FieldValue.serverTimestamp(),
         } : null,
       }, SetOptions(merge: true)); 
@@ -266,7 +287,6 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
     _ble.disconnect();
   }
 
-  // [修复核心 4] 将刚才解析出的好友距离打包发给 ESP32
   void _startBleWriteTimer() {
     _bleWriteTimer?.cancel();
     _bleWriteTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
@@ -276,7 +296,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
         await _ble.writeSpeedDistance(
           _currentSpeed,
           _totalDistance * 1000, 
-          friendDistKm: _friendDistance,  // 传入真实的好友数据
+          friendDistKm: _friendDistance,  
           friendGoalKm: _friendGoal,
         );
       }
@@ -290,9 +310,9 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
     _updateFirebaseStatus(false); 
   }
 
-  // ── SOS UI 功能 ──────────────────────────────────────────────────────────
+  // ── SOS UI Function ──────────────────────────────────────────────────────────
   
-  // 自己的 SOS 弹窗
+  // Display own SOS pop up
   void _showSosDialog() {
     showDialog(
       context: context,
@@ -315,37 +335,6 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
             style: ElevatedButton.styleFrom(backgroundColor: Colors.white),
             onPressed: () => Navigator.pop(context),
             child: const Text('OK', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // [修复核心 5] 好友的专属 SOS 弹窗提示
-  void _showFriendSosDialog(String friendName) {
-    if (!mounted || ModalRoute.of(context)?.isCurrent != true) return; 
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        backgroundColor: Colors.red[900],
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.white, size: 28),
-            SizedBox(width: 10),
-            Text('FRIEND IN DANGER', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-          ],
-        ),
-        content: Text(
-          '🚨 $friendName has triggered an SOS alert!\n\nPlease check on them immediately or call for help.',
-          style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.4),
-        ),
-        actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.white),
-            onPressed: () => Navigator.pop(context),
-            child: const Text('I Understand', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -389,7 +378,6 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
       _updateFirebaseStatus(true);
 
       if (_ble.isConnected) {
-        // [修改] 模拟骑行也要发送好友数据
         _ble.writeSpeedDistance(point.speed, point.totalDistance, 
             friendDistKm: _friendDistance, friendGoalKm: _friendGoal);
       }

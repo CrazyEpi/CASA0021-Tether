@@ -5,7 +5,7 @@ import '../models/trip_goal.dart';
 import '../data/mock_data.dart';
 import '../services/ble_service.dart';
 import 'map_navigation_screen.dart';
-import 'developer_console.dart'; // [新增] 引入开发者控制台
+import 'developer_console.dart'; // Developer console for mock testing
 
 class GoalsScreen extends StatefulWidget {
   final AppUser currentUser;
@@ -48,6 +48,7 @@ class _GoalsScreenState extends State<GoalsScreen>
     super.dispose();
   }
 
+  // Save edited monthly goals and sync to hardware
   void _saveMonthlyGoals() {
     setState(() {
       _monthlyGoal.targetDistanceKm =
@@ -61,7 +62,7 @@ class _GoalsScreenState extends State<GoalsScreen>
       _isEditing = false;
     });
 
-    // [核心修复] 将 Monthly 里填写的最新距离，作为设备目标同步给 ESP32！
+    // Sync the newly saved monthly distance goal to the ESP32
     BleService().writeGoalKm(_monthlyGoal.targetDistanceKm);
 
     ScaffoldMessenger.of(context).showSnackBar(

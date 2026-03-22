@@ -66,7 +66,7 @@ class FirestoreService {
       }, SetOptions(merge: true));
       
     } catch (e) {
-      print('❌ Firestore SOS Log Error: $e');
+      print('Firestore SOS Log Error: $e');
     }
   }
 }

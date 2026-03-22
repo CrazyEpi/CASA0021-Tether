@@ -25,16 +25,24 @@ dependencies:
   cloud_firestore: ^6.1.3
   firebase_auth: ^6.2.0
   flutter_background: ^1.3.1
+  flutter_local_notifications: ^21.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: false
+  image_path: "assets/images/logo.png"
+  min_sdk_android: 21
 
 flutter:
   uses-material-design: true
   assets:
-    - assets/images/
+    - assets/images/logo.png
 
   # Add custom fonts here when available
   # fonts:

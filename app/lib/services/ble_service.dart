@@ -20,12 +20,13 @@ class BleService {
 
   static const String deviceName    = 'BikeTracker_E';
 
-  // [新增] 全局开发者模式覆写开关，用于阻断 Firebase 数据覆盖
+  // developer override mode for testing without another device, will stop firebase data download
   bool devModeOverride = false;
 
   BluetoothDevice? _device;
   BleStatus _status = BleStatus.disconnected;
 
+  // BLE Characteristics
   BluetoothCharacteristic? _cSpeed;
   BluetoothCharacteristic? _cGoal;
   BluetoothCharacteristic? _cTime;
@@ -33,6 +34,7 @@ class BleService {
   BluetoothCharacteristic? _cSos;
   BluetoothCharacteristic? _cSocial;
 
+  // Data Subscriptions
   StreamSubscription? _scanSub;
   StreamSubscription? _connSub;
   StreamSubscription? _sosSub;
@@ -40,8 +42,13 @@ class BleService {
   bool _isWritingSpeed = false; 
   DateTime? _lastSpeedWrite; 
 
+  // timer for time sync
+  Timer? _timeSyncTimer;
+  String _lastSyncedTime = '';
+
   final FirestoreService _firestore = FirestoreService();
 
+  // Streams for UI updates
   final _statusCtrl = StreamController<BleStatus>.broadcast();
   final _sosCtrl    = StreamController<bool>.broadcast();
   final _logCtrl    = StreamController<String>.broadcast();
@@ -67,6 +74,7 @@ class BleService {
     return statuses.values.every((s) => s.isGranted || s.isLimited);
   }
 
+  // Scan and connect to the target device
   Future<bool> connectToDevice() async {
     if (_status == BleStatus.connected) return true;
 
@@ -128,6 +136,7 @@ class BleService {
     return await _connect(device);
   }
 
+  // Establish connection
   Future<bool> _connect(BluetoothDevice device) async {
     _updateStatus(BleStatus.connecting);
     _device = device;
@@ -139,8 +148,10 @@ class BleService {
       return false;
     }
 
+    // Delay required for Android BLE stack stability
     await Future.delayed(const Duration(milliseconds: 600));
 
+    // Request higher MTU for larger payload handling
     if (Platform.isAndroid) {
       try { await device.requestMtu(251); } catch (_) {}
     }
@@ -155,6 +166,7 @@ class BleService {
     return await _discoverServices(device);
   }
 
+  // Discover and assign characteristics
   Future<bool> _discoverServices(BluetoothDevice device) async {
     try {
       final services = await device.discoverServices();
@@ -177,6 +189,7 @@ class BleService {
       return false;
     }
 
+    // Subscribe to hardware SOS alerts
     if (_cSos != null) {
       try {
         await _cSos!.setNotifyValue(true);
@@ -192,24 +205,36 @@ class BleService {
 
     _updateStatus(BleStatus.connected);
     await Future.delayed(const Duration(milliseconds: 200));
-    await syncTime(); 
+    
+    // Initial time sync and background periodic check
+    _timeSyncTimer?.cancel();
+    _timeSyncTimer = Timer.periodic(const Duration(seconds: 10), (_) => syncTime());
+
     return true;
   }
 
+  // Disconnect and clean up resources
   void disconnect() {
     _sosSub?.cancel();
     _connSub?.cancel();
     _scanSub?.cancel();
+    
+    _timeSyncTimer?.cancel();
+    _timeSyncTimer = null;
+    _lastSyncedTime = '';
+
     _device?.disconnect();
     _clearCharacteristics();
     _updateStatus(BleStatus.disconnected);
   }
 
+  // Trigger social LED pulse animation on hardware
   Future<void> writeNeoPixelSocialSignal() async {
     if (!isConnected || _cSocial == null) return;
     try { await _cSocial!.write([0x01], withoutResponse: false); } catch (e) {}
   }
 
+  // Sync ride data payload: "Speed, MyDist, FriendDist, FriendGoal"
   Future<void> writeSpeedDistance(double speedKmh, double distanceKm, 
       {double goalKm = 10.0, double friendDistKm = 0.0, double friendGoalKm = 0.0}) async {
     if (_cSpeed == null || !isConnected) return;
@@ -230,6 +255,7 @@ class BleService {
     }
   }
 
+  // Sync target goal distance
   Future<void> writeGoalKm(double km) async {
     if (_cGoal == null || !isConnected) return;
     try {
@@ -238,15 +264,21 @@ class BleService {
     } catch (e) {}
   }
 
+  // Sync time only when the minute changes
   Future<void> syncTime() async {
     if (_cTime == null || !isConnected) return;
     try {
       final now = DateTime.now();
-      final t = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-      await _cTime!.write(utf8.encode(t), withoutResponse: false);
+      final currentMinuteStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+      
+      if (currentMinuteStr != _lastSyncedTime) {
+        await _cTime!.write(utf8.encode(currentMinuteStr), withoutResponse: false);
+        _lastSyncedTime = currentMinuteStr;
+      }
     } catch (e) {}
   }
 
+  // Sync online friends count
   Future<void> writeOnlineFriends(int count) async {
     if (_cFriends == null || !isConnected) return;
     try {
