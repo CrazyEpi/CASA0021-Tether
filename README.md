@@ -89,10 +89,36 @@ To begin using Tether, users will need:
 - the required hardware components assembled and powered  
 
 ### Setup
-????
+### Setup
 
+Getting Tether up and running requires assembling the hardware, flashing the firmware to the ESP32-S3, and deploying the Flutter mobile app.
 
----
+#### Phase 1: Hardware Assembly
+1. Connect the **24-LED NeoPixel Ring** to the ESP32-S3 board (Data pin mapped to `GPIO 16`, with 3.3V/5V and GND connected appropriately).
+2. Connect the Battery to the board using the 1.25mm pitch 2-pin cable.
+3. Secure the components properly mounted inside the 3D-printed enclosure.
+
+#### Phase 2: ESP32 Firmware Setup (Arduino IDE)
+The Waveshare ESP32-S3-Touch-AMOLED-1.75 requires specific libraries and configurations to drive the screen, touch interface, and power management correctly. 
+
+**1. Board Manager:**
+Ensure you have the ESP32 board package installed in your Arduino IDE. Select **ESP32S3 Dev Module** as your target board. Enable "PSRAM: OPI PSRAM" in the tools menu if required by your specific board variant.
+
+| Library / File | Purpose |
+| :--- | :--- |
+| `GFX_Library_for_Arduino` | GFX graphics library adapted for the CO5300 display |
+| `ESP32_IO_Expander` | Driver library for the TCA9554 IO expansion chip |
+| `lvgl` | Core LVGL graphics library (v8.4.0) |
+| `SensorLib` | Driver library for PCF85063, QMI8658, and CST9217 sensors |
+| `XPowersLib` | Driver library for the AXP2101 power management chip |
+| `Mylibrary` | Custom macro definitions for development board pins |
+| `lv_conf.h` | Configuration file for the LVGL library |
+
+#### Software Environment (Flutter App)
+1. Ensure you have the Flutter SDK installed on your machine.
+2. Clone the repository and navigate to the app directory.
+3. Run `flutter pub get` to fetch all necessary Dart packages and dependencies.
+4. Build and run the app on your compatible iOS or Android device.
 
 ## ✦ Need Help?
 
@@ -112,9 +138,9 @@ This project is maintained and developed by the Tether team.
 
 **Maintainers / Contributors**
 
-- **Gilang Pamungkas** — Hardware
+- **Gilang Pamungkas** — Backend
 - **Haoyu Hu** — Hardware
-- **Yidan Gao** — App
+- **Yidan Gao** — Frontend
 - **Yifei Huang** — 3D Print
 
 
