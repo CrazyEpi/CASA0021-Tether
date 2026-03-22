@@ -79,7 +79,7 @@ Emergency signalling and status indicators help communicate urgent situations mo
 
 ---
 
-## ✦ Getting Started
+# ✦ Getting Started
 
 To begin using Tether, users will need:
 
@@ -93,7 +93,9 @@ To begin using Tether, users will need:
 ????
 
 
-✦ Need Help?
+---
+
+## ✦ Need Help?
 
 If you have questions, suggestions, or technical issues, support is available through the following channels:
 
@@ -105,7 +107,7 @@ Contact email: [ucfnuaw@ucl.ac.uk]
 
 
 
-✦ Team and Contributions
+## ✦ Team and Contributions
 
 This project is maintained and developed by the Tether team.
 
@@ -119,7 +121,7 @@ Maintainers / Contributors
 
 
 
-## Components Used
+## ✦ Components Used
 
 1. Waveshare ESP32-S3-Touch-AMOLED-1.75 ——
 
