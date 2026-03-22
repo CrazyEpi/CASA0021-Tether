@@ -111,13 +111,12 @@ Contact email: [ucfnuaw@ucl.ac.uk]
 
 This project is maintained and developed by the Tether team.
 
-Maintainers / Contributors
+**Maintainers / Contributors**
 
-[Gilang Pamungkas / hardware]
-[Haoyu Hu / Hardware]
-[Yidan Gao / App]
-[Yifei Huang / 3D print]
-
+- **Gilang Pamungkas** — Hardware
+- **Haoyu Hu** — Hardware
+- **Yidan Gao** — App
+- **Yifei Huang** — 3D Print
 
 
 
