@@ -35,6 +35,18 @@ The phone acts as the **GPS and cloud gateway**, processing ride information, he
 ### BLE as the communication layer
 The system uses **Bluetooth Low Energy (BLE)** to transfer ride data efficiently from the mobile app to the handlebar-mounted device.
 
+**Device Name:** `BikeTracker_E`  
+**Primary Service UUID:** `19B10000-E8F2-537E-4F6C-D104768A1214`
+
+| Characteristic | UUID Suffix | Direction | Data Type | Payload Format & Description |
+| :--- | :--- | :--- | :--- | :--- |
+| **Live Metrics** | `...0001` | App → ESP32 | String (UTF-8) | `"Speed,MyDist,FriendDist,FriendGoal"`<br>*(e.g., `15.5,2.5,3.1,10.0`)*. Drives the speedometer and the dual-progress LED ring computations. |
+| **Target Goal** | `...0002` | App → ESP32 | Float32 (LE) | Absolute target distance in kilometers. |
+| **Time Sync** | `...0003` | App → ESP32 | String (UTF-8) | `"HH:MM"` format. Syncs phone system time to the dashboard. |
+| **Social State** | `...0004` | App → ESP32 | Int32 (LE) | Number of online friends. Triggers the split-ring (Blue/Purple) UI mode if `> 0`. |
+| **SOS Alert** | `...0005` | ESP32 → App | Byte (Notify) | `0x01` (Triggered) / `0x00` (Cleared). Uses BLE Notifications for zero-latency emergency broadcasting to the cloud. |
+| **Social Pulse** | `...0006` | App → ESP32 | Byte | `0x01`. An event trigger that interrupts the default LED loop to play a 2-second cyan breathing animation. |
+
 ### ESP32 device as the feedback layer
 A custom **ESP32-based device** with an AMOLED screen and LED ring renders ride information in real time.  
 The device can display:
@@ -144,7 +156,7 @@ This project is maintained and developed by the Tether team.
 **Maintainers / Contributors**
 
 - **Gilang Pamungkas** — Backend
-- **Haoyu Hu** — Hardware
+- **Haoyu Hu** — Hardware Development + App Improvement + Overall Testing + Video Recording and Editing
 - **Yidan Gao** — Frontend
 - **Yifei Huang** — 3D Print
 
