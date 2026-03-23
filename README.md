@@ -168,4 +168,7 @@ This project is maintained and developed by the Tether team.
 2. NeoPixel Ring - 24 x 5050 RGB LED with Integrated Drivers
 3. 1000mAh 3.7V LiPo Battery
 4. 1.25mm Ultra-Slim Pitch 2-pin Cable Matching Pair 
-5. 3D print 
+5. 3D print
+
+## ✦ Vedio
+[![Watch the demo on YouTube](https://img.youtube.com/vi/pJ0elN8aA2U/maxresdefault.jpg)](https://youtu.be/pJ0elN8aA2U)
