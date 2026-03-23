@@ -171,4 +171,4 @@ This project is maintained and developed by the Tether team.
 5. 3D print
 
 ## ✦ Vedio
-[![Watch the demo on YouTube](https://img.youtube.com/vi/pJ0elN8aA2U/maxresdefault.jpg)](https://youtu.be/pJ0elN8aA2U)
+[Watch the video](https://youtu.be/pJ0elN8aA2U)
