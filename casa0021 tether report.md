@@ -10,9 +10,7 @@
 
 ## 1. Introduction
 
-Tether is a connected cycling system comprising a mobile application and a handlebar-mounted ambient device. Developed as part of the CASA0021 Connected Environments module, the project responds to a well-documented but underexplored design problem: the structural incompatibility between attention-intensive smartphone interfaces and the embodied, distributed demands of cycling. Tether externalises ride feedback into a bicycle-mounted ambient interface, enabling real-time awareness of performance, social comparison, and safety state without requiring riders to disengage from their physical environment.
-
-This report documents the problem context and motivation underpinning Tether, the iterative design and development process that produced the final prototype, and a reflection on where the system sits within Connected Environments research. It also addresses production cost analysis, sustainability considerations, and the directions in which the project would be extended given further time and resources.
+Tether is a connected cycling system comprising a mobile application and a handlebar-mounted ambient device. It responds to a structural incompatibility between attention-intensive smartphone interfaces and the embodied demands of cycling, externalising ride feedback into a bicycle-mounted ambient interface that enables real-time awareness of performance, social comparison, and safety state without requiring riders to disengage from their environment. This report documents the problem context, iterative design and development process, research positioning, production costs, sustainability, and future directions for the project.
 
 ---
 
@@ -20,7 +18,7 @@ This report documents the problem context and motivation underpinning Tether, th
 
 The proliferation of consumer cycling technology — principally smartphone applications such as Strava and Komoot — has significantly expanded access to ride tracking, route planning, and social comparison. However, these systems are designed around a screen-interaction paradigm that assumes sedentary or low-demand contexts. Cycling imposes simultaneous demands on motor control, environmental awareness, and spatial navigation, making sustained visual engagement with a handheld device both cognitively costly and physically hazardous (Strayer & Drews, 2007).
 
-Alternative hardware — dedicated cycling computers and smartwatches — partially mitigate smartphone dependency but replicate the same design assumption: that information density and direct visual engagement are primary values. Garmin and Wahoo devices, for instance, display rich data fields requiring deliberate focused reading, which interrupts the attentional flow of riding . This represents what Norman (2013) describes as a mismatch between the system's interaction model and the user's cognitive and physical context.
+Alternative hardware — dedicated cycling computers and smartwatches — partially mitigate smartphone dependency but replicate the same assumption: information density and direct visual engagement remain primary values, requiring deliberate focused reading that interrupts riding. This represents what Norman (2013) describes as a mismatch between the system's interaction model and the user's cognitive and physical context.
 
 Beyond functional limitations, the social dimension of cycling is systematically underdeveloped in current platforms. Strava's social features are predominantly retrospective — kudos, segment comparisons, and activity feeds are experienced after the ride, not during it. This forecloses a class of motivational and affective interaction that could meaningfully support riders during the ride itself: awareness of a friend's concurrent progress, lightweight social presence, and shared goal pursuit (Consolvo et al., 2006).
 
@@ -35,13 +33,13 @@ The central research question is therefore: **how can a connected cycling system
 
 ## 3. Target Users and Scenarios
 
-Tether is designed for everyday cyclists operating in urban and peri-urban environments. Primary user groups include commuters who require situational awareness without screen engagement; recreational and fitness riders pursuing distance goals; socially connected cyclists who ride with friends and want to maintain shared awareness during the ride; and users with safety concerns who benefit from rapid emergency signalling capability.
+Tether targets everyday cyclists in urban environments: commuters requiring situational awareness without screen engagement; fitness riders pursuing distance goals; socially connected cyclists wanting shared awareness during rides; and users requiring rapid emergency signalling.
 
-Three core scenarios structured the design process, each grounded in an identified user need from the literature and observation:
+Three core scenarios structured the design process:
 
-- **Individual riding:** A commuter pairs the Tether device via BLE and sets a daily distance goal; the LED ring fills progressively as the goal is approached, providing a continuous but non-intrusive cue. This scenario responds to evidence that goal-visibility during activity contributes to sustained behaviour change (Consolvo et al., 2006).
-- **Shared riding:** Two friends start a ride simultaneously; the split-ring mode divides the LED ring into two arcs — blue for the rider's own progress, purple for their friend's — enabling immediate social comparison without any screen interaction. The motivational basis for this mode draws on social facilitation principles — that awareness of a peer's concurrent effort increases individual motivation to perform.
-- **Emergency context:** A rider in difficulty performs a three-second physical hold on the device button, triggering an SOS alert that is routed via BLE to the mobile application and onwards to the cloud, notifying contacts without requiring the rider to locate or unlock their phone. The three-second hold is a deliberate interaction design decision: it must be executable under physical and cognitive stress without fine motor control or screen engagement, while remaining resistant to accidental activation during normal riding.
+- **Individual riding:** A commuter sets a daily distance goal; the LED ring fills progressively as the goal is approached. This responds to evidence that goal-visibility during activity contributes to sustained behaviour change (Consolvo et al., 2006).
+- **Shared riding:** Two friends ride simultaneously; the split-ring mode shows each rider's progress in a separate arc, enabling social comparison without screen interaction. This draws on social facilitation principles — that awareness of a peer's concurrent effort increases individual motivation to perform.
+- **Emergency context:** A three-second physical hold triggers an SOS alert routed via BLE to the app and onwards to the cloud. The hold duration is a deliberate design trade-off: long enough to prevent accidental activation, short enough to be operable under physical stress.
 
 
 ---
@@ -66,7 +64,7 @@ The final hardware design addressed both residual issues. GPS computation and dr
 
 ### 4.2 Enclosure Design Iterations
 
-The 3D-printed enclosure underwent four complete revision cycles. Early versions used fixed clips which were incompatible with different handlebar diameters; subsequent iterations introduced a rotary interlock mechanism for easier attachment. A friction-based screen locker was added after field testing showed the display rotating under vibration. The current version uses rubber band mounts for rapid prototyping-phase testing, prioritising field adjustability over permanent integration. The light diffuser cover remains an acknowledged weak point — the fit is not sufficiently tight, causing light bleed between LED segments in high-ambient-light conditions. A further revision with improved tolerancing and weather sealing is identified as the immediate next hardware priority.
+The 3D-printed enclosure underwent four complete revision cycles. Early versions used fixed clips incompatible with different handlebar diameters; subsequent iterations introduced a rotary interlock and a friction-based screen locker after field testing showed the display rotating under vibration. The current version uses rubber band mounts for field adjustability. The light diffuser cover remains an acknowledged weak point — insufficient sealing causes light bleed between LED segments in high-ambient-light conditions.
 
 ### 4.3 Communication Architecture
 
@@ -87,9 +85,7 @@ The unidirectional notify pattern for SOS — where the ESP32 pushes to the app 
 
 ### 4.4 Mobile Application Development
 
-The companion application was built in Flutter, enabling a single codebase to target both iOS and Android while handling platform-specific BLE scanning and location permission patterns. The application integrates three live data sources during a ride: phone GPS via the geolocator package, BLE hardware telemetry, and real-time friend position data from Firebase Firestore (europe-west2 region).
-
-The decision to use Firebase rather than a custom backend was based on its real-time synchronisation capability — Firestore's `onSnapshot` listener pattern maps naturally to the shared-ride use case, where a friend's updated distance must propagate to both the companion app and the handlebar device within seconds. The app comprises eight fully functional screens covering the full ride lifecycle: pre-ride route planning and goal setting, live tracking with BLE device connection, post-ride summary and social feed, leaderboard, and a developer console for hardware UI simulation during testing.
+The companion application was built in Flutter, enabling a single codebase for iOS and Android. It integrates three live data sources during a ride: phone GPS, BLE hardware telemetry, and real-time friend position data from Firebase Firestore (europe-west2 region). Firebase was chosen over a custom backend for its real-time synchronisation — Firestore's `onSnapshot` listener propagates a friend's updated distance to both the app and the handlebar device within seconds. Eight fully functional screens cover the full ride lifecycle from route planning through post-ride social feed.
 
 ---
 
@@ -124,7 +120,7 @@ The project GitHub repository is structured to complement rather than duplicate 
 
 ## 6. Connected Environments Research Context
 
-Tether contributes to a body of Connected Environments research concerned with embedding computational feedback into physical activity contexts. The system's core design principle — externalising digital information into an ambient, peripheral interface — builds directly on Weiser and Brown's (1996) framework of calm technology, which distinguishes between technologies that demand centre-stage attention and those that operate at the periphery until needed.
+Tether contributes to Connected Environments research on embedding computational feedback into physical activity contexts. Its core design principle — externalising information into an ambient peripheral interface — builds directly on Weiser and Brown's (1996) calm technology framework, which distinguishes technologies demanding focal attention from those operating at the periphery until needed.
 
 The LED ring as an ambient display aligns with the ambient information systems literature (Mankoff et al., 2003; Pousman & Stasko, 2006), which characterises effective ambient displays as those achieving high information legibility at low attentional cost. Tether operationalises this through the arc-fill metaphor: progress is encoded spatially and proportionally, readable in a peripheral glance without numerical parsing.
 
@@ -160,14 +156,7 @@ The suggested retail price of **£149** positions Tether competitively against t
 
 ### 7.2 Sustainability Considerations
 
-The sustainability profile of Tether is shaped by several design decisions:
-
-- **BLE communication** significantly reduces device power consumption relative to WiFi or cellular alternatives, extending battery life per charge cycle and reducing total energy consumption over the product's lifetime.
-- **GPS offloading to phone** eliminates a second GPS chipset from the device, reducing both manufacturing complexity and electronic waste volume.
-- **PLA enclosure** is biodegradable under industrial composting conditions, representing a more sustainable enclosure material than injection-moulded ABS.
-- **Repairability gap:** The current enclosure is not designed for easy disassembly, limiting component recovery at end of life. A production version would redesign for modular disassembly, allowing the ESP32 and LED ring to be replaced independently.
-- **Battery impact:** The LiPo battery carries the greatest environmental impact in manufacturing (cobalt and lithium extraction) and disposal. A production version would integrate a battery replacement programme and partner with certified e-waste processors.
-- **Cloud infrastructure:** Firebase runs on Google's data centres, which have committed to operating on 24/7 carbon-free energy by 2030, partially mitigating the operational carbon footprint.
+Several design decisions improve Tether's sustainability profile. BLE reduces device power consumption relative to WiFi or cellular, and offloading GPS to the phone eliminates a second chipset, reducing manufacturing complexity and electronic waste. The PLA enclosure is biodegradable under industrial composting conditions, though the current design's lack of modular disassembly limits component recovery at end of life — a production version would allow the ESP32 and LED ring to be replaced independently. The LiPo battery carries the greatest environmental impact; a production version would partner with certified e-waste processors and offer a battery replacement programme. Firebase's cloud infrastructure runs on Google data centres committed to 24/7 carbon-free energy by 2030.
 
 ---
 
@@ -190,19 +179,7 @@ Tether's competitive edge lies in its social and safety differentiation within t
 
 ## 9. Future Work
 
-Given additional time and resources, Tether would be developed along four principal vectors:
-
-**Hardware integration and durability**  
-The current reliance on the phone for GPS and cloud connectivity is an architectural compromise that reduces device independence. A future iteration would integrate a low-power GPS chipset directly into the device and add a cellular module (e-SIM) for standalone operation, enabling SOS alerts even when the phone is out of BLE range. The enclosure would be redesigned to achieve IP65 weather resistance and pass handlebar vibration testing standards.
-
-**Energy autonomy**  
-The 900mAh battery is insufficient for rides exceeding approximately three hours. A production device would target a 2,000–3,000mAh cell with solar-assisted top-up via a thin-film panel integrated into the enclosure lid (Dong et al., 2021). The adaptive brightness algorithm would be extended with an accelerometer-based motion detector to modulate display state more precisely.
-
-**Expanded social features**  
-The current friend-mode supports one-to-one comparison. A group ride mode supporting up to five simultaneous riders would be developed, with segment-based LED allocation encoding each rider's relative position within the group. Integration with Strava's API would allow existing social graphs to be imported without requiring separate account creation.
-
-**Safety expansion**  
-The SOS system would be extended with automatic crash detection using the ESP32's onboard accelerometer, triggering an alert after an impact event with a 10-second cancellation window to prevent false positives. Integration with emergency services APIs (999/112) would be explored subject to regulatory review.
+Given additional time and resources, Tether would be developed along four vectors. First, hardware independence: integrating a low-power GPS chipset and e-SIM cellular module would enable standalone operation, allowing SOS alerts even beyond BLE range, alongside an IP65-rated enclosure meeting handlebar vibration standards. Second, energy autonomy: the 900mAh battery limits ride duration to approximately three hours; a 2,000–3,000mAh cell with solar-assisted top-up via a thin-film panel, drawing on energy harvesting approaches in self-powered IoT sensor research (Dong et al., 2021), would address this. Third, expanded social features: a group ride mode for up to five riders, with segment-based LED allocation per rider, and Strava API integration for importing existing social graphs. Fourth, safety expansion: automatic crash detection via the ESP32 accelerometer, with a 10-second cancellation window to prevent false positives, and integration with emergency services APIs subject to regulatory review.
 
 ---
 
@@ -210,7 +187,7 @@ The SOS system would be extended with automatic crash detection using the ESP32'
 
 Tether demonstrates a viable, principled approach to the challenge of ambient information delivery in high-demand physical activity contexts. By grounding the design in ubiquitous computing theory and calm technology principles, and by iterating through three hardware prototypes and four enclosure revisions, the project has produced a functional connected cycling system that meaningfully reduces smartphone dependency while introducing novel social and safety capabilities not present in existing commercial devices.
 
-The system goes beyond the immediate scope of the module by integrating real-time cloud synchronisation, a production-grade Flutter application, custom BLE firmware, and a viable commercial model with quantified cost and revenue projections. While current limitations in battery life, weather resistance, and enclosure fit are acknowledged, these represent engineering refinement challenges rather than fundamental design flaws. The architectural decisions underpinning Tether — ambient feedback, phone-as-gateway, BLE for real-time safety signalling — are validated by the prototype and provide a sound foundation for continued development.
+The system goes beyond module scope by integrating real-time cloud synchronisation, a production-grade Flutter application, custom BLE firmware, and a viable commercial model with quantified projections. Current limitations in battery life, weather resistance, and enclosure fit are acknowledged but represent engineering refinements rather than fundamental design flaws, and the core architectural decisions — ambient feedback, phone-as-gateway, BLE safety signalling — are validated by the prototype.
 
 ---
 
