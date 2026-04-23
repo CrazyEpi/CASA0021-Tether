@@ -1,13 +1,6 @@
 # CASA0021-Tether
 # Tether: Designing a Connected Cycling Companion for Motivation, Awareness and Safety
 
-Group Members
-Gilang Pamungkas — Backend / System Integration
-Haoyu Hu — Hardware Development / Testing / Media
-Yidan Gao — Frontend Development
-Yifei Huang — 3D Design / Physical Enclosure
-
-GitHub Repository: https://github.com/CrazyEpi/CASA0021-Tether 
 
 ## 1. Introduction
 
