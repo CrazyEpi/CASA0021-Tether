@@ -24,6 +24,12 @@ This project is situated within Connected Environments research, which examines 
 
 Tether extends this direction by addressing the limitations of attention-heavy, phone-based interaction. It introduces an ambient, bicycle-mounted system that reduces direct device interaction while supporting lightweight social connectivity during movement. This positions Tether as a connected system linking rider, bicycle, application, and social context into a unified, low-attention experience for real-world mobility.
 
+### Problem Statement
+
+The main problem addressed by this project is that current cycling interfaces fail to integrate awareness, motivation, safety, and social connection within a coherent interaction experience. Predominant solutions, including smartphone-based applications such as Strava, are grounded in interaction paradigms that assume sustained visual attention. This creates a fundamental mismatch with the embodied and safety-critical nature of cycling, where attentional resources must remain distributed across movement and environmental monitoring. Engaging with such systems therefore introduces unnecessary cognitive load and potential safety risks, even when only minimal information is required.
+
+Beyond this interactional constraint, existing cycling technologies are predominantly optimised for navigation and performance tracking, reflecting a functional rather than experiential focus. This results in a systematic neglect of social and affective dimensions of cycling, such as shared progress, lightweight communication, and reassurance during activity. Consequently, current approaches fail to support cycling as a socially situated and contextually embedded experience, revealing a broader limitation in how mobile systems are designed for dynamic physical environments.
+
 
 ### Target Users and Scenarios
 
