@@ -3,30 +3,8 @@
 
 **Group:** Four Gods (Group 4)  
 **Members:** Gilang Pamungkas · Haoyu Hu · Yidan Gao · Yifei Huang  
-**GitHub Repository:** https://github.com/[your-repo-link]  
-**Institution:** UCL Bartlett Centre for Advanced Spatial Analysis, 2024–25
-
----
-
-## Table of Contents
-
-1. [Introduction](#1-introduction)
-2. [Problem Context and Research Question](#2-problem-context-and-research-question)
-3. [Target Users and Scenarios](#3-target-users-and-scenarios)
-4. [Design and Development](#4-design-and-development)
-   - [4.1 Hardware Prototyping Iterations](#41-hardware-prototyping-iterations)
-   - [4.2 Enclosure Design Iterations](#42-enclosure-design-iterations)
-   - [4.3 Communication Architecture](#43-communication-architecture)
-   - [4.4 Mobile Application Development](#44-mobile-application-development)
-5. [System Architecture Overview](#5-system-architecture-overview)
-6. [Connected Environments Research Context](#6-connected-environments-research-context)
-7. [Production Costs and Sustainability](#7-production-costs-and-sustainability)
-   - [7.1 Component Costs](#71-component-costs)
-   - [7.2 Sustainability Considerations](#72-sustainability-considerations)
-8. [Competitive Positioning](#8-competitive-positioning)
-9. [Future Work](#9-future-work)
-10. [Conclusion](#10-conclusion)
-11. [References](#11-references)
+**GitHub Repository:** https://github.com/CrazyEpi/CASA0021-Tether  
+**Institution:** MSc Connected Environments, UCL Bartlett Centre for Advanced Spatial Analysis, 2025–26
 
 ---
 
@@ -139,9 +117,9 @@ The device implements three LED rendering modes:
 
 An adaptive brightness algorithm dims the display at low speed to conserve battery — a power management decision that emerged from field testing in Prototype 2.
 
-> **📷 Suggested image here:** Insert hardware prototype photo (final enclosure mounted on handlebars) — available from pitch deck assets.
+![final enclosure mounted on handlebars](img/Tether.jpg) 
 
-> **📷 Suggested image here:** Insert system architecture diagram showing the three-layer flow (Phone → BLE → ESP32) — available from pitch deck slide 4.
+![system architecture diagram showing the three-layer flow (Phone → BLE → ESP32](img/diagram.png) 
 
 The project GitHub repository is structured to complement rather than duplicate this report. The README covers: step-by-step hardware assembly with component wiring diagrams; ESP32 firmware flashing via Arduino IDE including all required library dependencies; Flutter application setup and deployment for both iOS and Android; and the full BLE characteristic table with UUID definitions, payload formats, and data direction. These reproducibility materials are intentionally kept separate from the analytical narrative of this report so that a reader can build and run Tether independently without reference to this document.
 
