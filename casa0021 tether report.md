@@ -119,9 +119,11 @@ The device implements three LED rendering modes:
 
 An adaptive brightness algorithm dims the display at low speed to conserve battery — a power management decision that emerged from field testing in Prototype 2.
 
-![final enclosure mounted on handlebars](img/Tether.jpg) 
+![final enclosure mounted on handlebars](img/Tether.jpg)
+*Final enclosure mounted on handlebars*
 
-![system architecture diagram showing the three-layer flow (Phone → BLE → ESP32](img/diagram.png) 
+![system architecture diagram showing the three-layer flow (Phone → BLE → ESP32](img/diagram.png)
+*system architecture diagram showing the three-layer flow (Phone → BLE → ESP32* 
 
 The project GitHub repository is structured to complement rather than duplicate this report. The README covers: step-by-step hardware assembly with component wiring diagrams; ESP32 firmware flashing via Arduino IDE including all required library dependencies; Flutter application setup and deployment for both iOS and Android; and the full BLE characteristic table with UUID definitions, payload formats, and data direction. These reproducibility materials are intentionally kept separate from the analytical narrative of this report so that a reader can build and run Tether independently without reference to this document.
 
