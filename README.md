@@ -25,19 +25,27 @@ The main problem addressed by this project is that current cycling interfaces do
 Many existing cycling products also focus mainly on navigation or performance tracking. These are useful features, but they often overlook the more social and emotional aspects of riding. Cyclists may want to share progress with friends, compare performance, or feel reassured that support is available if something goes wrong. This suggests an opportunity for a product that supports not only information delivery, but also connection and responsiveness.
 
 
-## ✦ Project Vision
+### Target Users and Scenarios
 
-Cycling information is often fragmented across phones, apps, and small on-screen notifications. Tether was developed to make this experience more immediate and intuitive by turning ride data into a physical, glanceable interface mounted directly on the bike.
+Tether is aimed at everyday cyclists, especially:
+- commuters who need quick ride information,
+- recreational riders who want visual motivation,
+- friends who want to compare progress,
+- and riders who may need a more visible emergency communication system.
 
-Rather than focusing only on navigation, Tether explores how cyclists can remain aware of:
+The main user scenarios are:
+1. **Individual riding**, where the rider sets a distance goal and tracks progress during the ride.
+2. **Shared riding**, where two riders compare progress in real time even when cycling separately.
+3. **Emergency situations**, where one rider can send an alert directly from the device.
 
-- their own ride progress  
-- their friends’ progress  
-- connection status  
-- emergency conditions  
-- battery and device state  
+### Project Objectives
 
-The goal is to create a cycling companion that is not only practical, but also more social, supportive, and safety-oriented.
+The main objectives of Tether were:
+- to reduce dependence on the smartphone during cycling,
+- to provide low-distraction ride feedback,
+- to support motivation through visible goal progress,
+- to strengthen social connection between riders,
+- and to create a more immediate emergency alert mechanism.
 
 ---
 
