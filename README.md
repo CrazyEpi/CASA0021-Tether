@@ -16,7 +16,9 @@ This report outlines the problem addressed by the project, identifies its users 
 
 ## 2. Problem Identification and Motivation
 
-Mobile applications such as Strava enable widespread activity tracking and social sharing, but rely on screen-based interaction that requires sustained visual and manual attention. In mobility contexts such as cycling or walking, this creates safety concerns, as users must divert attention from their surroundings to engage with a high-attention interface, often on fragile and high-value devices. Physical movement further limits the feasibility of such interaction, making conventional mobile-centric approaches less suitable for real-time use. This highlights the need for ambient, low-attention alternatives that reduce cognitive and visual load while still supporting lightweight social connection during movement.
+Mobile technologies are increasingly embedded in everyday mobility practices such as walking and cycling. However, research on interaction in dynamic contexts shows that users must divide attention between physical movement and system interaction, creating inherent constraints on perception, cognition, and safety. Despite these limitations, widely used applications such as Strava continue to rely on screen-based interfaces that require sustained visual and manual engagement.
+
+This mismatch between system design and real-world mobility conditions reduces their suitability for use in motion, where attention is fragmented and environmental awareness is critical. As a result, current solutions are limited in supporting safe, low-attention interaction during movement. This reveals a clear gap for alternative approaches that minimise cognitive and physical demands while maintaining meaningful engagement. This project is therefore motivated by the need to explore ambient interaction models that better align with the constraints of real-world mobility.
 
 ### Problem Statement
 
