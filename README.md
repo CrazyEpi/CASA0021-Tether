@@ -18,6 +18,12 @@ This report outlines the problem addressed by the project, identifies its users 
 
 Mobile applications such as Strava enable widespread activity tracking and social sharing, but rely on screen-based interaction that requires sustained visual and manual attention. In mobility contexts such as cycling or walking, this creates safety concerns, as users must divert attention from their surroundings to engage with a high-attention interface, often on fragile and high-value devices. Physical movement further limits the feasibility of such interaction, making conventional mobile-centric approaches less suitable for real-time use. This highlights the need for ambient, low-attention alternatives that reduce cognitive and visual load while still supporting lightweight social connection during movement.
 
+### Problem Statement
+
+The main problem addressed by this project is that current cycling interfaces do not effectively combine **awareness, motivation, safety, and social connection** in a way that is well integrated into the riding experience. Smartphones are powerful, but they are not ideal as the main interface while cycling. Looking at a phone can interrupt concentration and reduce safety, especially when the rider only needs quick and simple information.
+
+Many existing cycling products also focus mainly on navigation or performance tracking. These are useful features, but they often overlook the more social and emotional aspects of riding. Cyclists may want to share progress with friends, compare performance, or feel reassured that support is available if something goes wrong. This suggests an opportunity for a product that supports not only information delivery, but also connection and responsiveness.
+
 
 ## ✦ Project Vision
 
