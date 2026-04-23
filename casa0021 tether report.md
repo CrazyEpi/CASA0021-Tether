@@ -123,11 +123,13 @@ An adaptive brightness algorithm dims the display at low speed to conserve batte
   <img src="img/Tether.jpg" alt="Final enclosure mounted on handlebars" width="100%">
   <figcaption><strong>Figure 1.</strong> Final prototype enclosure mounted on handlebars, showing the 1.75" AMOLED display and 24-LED NeoPixel ring.</figcaption>
 </figure>
+<br>
 
 <figure>
   <img src="img/diagram.png" alt="System architecture diagram" width="100%">
   <figcaption><strong>Figure 2.</strong> Three-layer system architecture: phone application layer handles GPS and cloud sync; BLE transport layer transfers structured data packets; ESP32 device layer renders feedback via display and LED ring.</figcaption>
 </figure>
+<br>
 
 The project GitHub repository is structured to complement rather than duplicate this report. The README covers: step-by-step hardware assembly with component wiring diagrams; ESP32 firmware flashing via Arduino IDE including all required library dependencies; Flutter application setup and deployment for both iOS and Android; and the full BLE characteristic table with UUID definitions, payload formats, and data direction. These reproducibility materials are intentionally kept separate from the analytical narrative of this report so that a reader can build and run Tether independently without reference to this document.
 
