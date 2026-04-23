@@ -18,7 +18,7 @@ This report documents the problem context and motivation underpinning Tether, th
 
 ## 2. Problem Context and Research Question
 
-he proliferation of consumer cycling technology — principally smartphone applications such as Strava and Komoot — has significantly expanded access to ride tracking, route planning, and social comparison. However, these systems are designed around a screen-interaction paradigm that assumes sedentary or low-demand contexts. Cycling imposes simultaneous demands on motor control, environmental awareness, and spatial navigation, making sustained visual engagement with a handheld device both cognitively costly and physically hazardous (Strayer & Drews, 2007).
+The proliferation of consumer cycling technology — principally smartphone applications such as Strava and Komoot — has significantly expanded access to ride tracking, route planning, and social comparison. However, these systems are designed around a screen-interaction paradigm that assumes sedentary or low-demand contexts. Cycling imposes simultaneous demands on motor control, environmental awareness, and spatial navigation, making sustained visual engagement with a handheld device both cognitively costly and physically hazardous (Strayer & Drews, 2007).
 
 Alternative hardware — dedicated cycling computers and smartwatches — partially mitigate smartphone dependency but replicate the same design assumption: that information density and direct visual engagement are primary values. Garmin and Wahoo devices, for instance, display rich data fields requiring deliberate focused reading, which interrupts the attentional flow of riding . This represents what Norman (2013) describes as a mismatch between the system's interaction model and the user's cognitive and physical context.
 
@@ -39,9 +39,10 @@ Tether is designed for everyday cyclists operating in urban and peri-urban envir
 
 Three core scenarios structured the design process, each grounded in an identified user need from the literature and observation:
 
-- **Individual riding:** A commuter pairs the Tether device via BLE and sets a daily distance goal; the LED ring fills progressively as the goal is approached, providing a continuous but non-intrusive cue. This scenario responds to evidence that goal-visibility during activity — rather than post-hoc review — is the primary driver of sustained behaviour change (Consolvo et al., 2006).
-- **Shared riding:** Two friends start a ride simultaneously; the split-ring mode divides the LED ring into two arcs — blue for the rider's own progress, purple for their friend's — enabling immediate social comparison without any screen interaction. The motivational basis for this mode draws on social facilitation research showing that awareness of a peer's concurrent effort increases individual performance output (Brave & Dahley, 1997).
+- **Individual riding:** A commuter pairs the Tether device via BLE and sets a daily distance goal; the LED ring fills progressively as the goal is approached, providing a continuous but non-intrusive cue. This scenario responds to evidence that goal-visibility during activity contributes to sustained behaviour change (Consolvo et al., 2006).
+- **Shared riding:** Two friends start a ride simultaneously; the split-ring mode divides the LED ring into two arcs — blue for the rider's own progress, purple for their friend's — enabling immediate social comparison without any screen interaction. The motivational basis for this mode draws on social facilitation principles — that awareness of a peer's concurrent effort increases individual motivation to perform.
 - **Emergency context:** A rider in difficulty performs a three-second physical hold on the device button, triggering an SOS alert that is routed via BLE to the mobile application and onwards to the cloud, notifying contacts without requiring the rider to locate or unlock their phone. The three-second hold is a deliberate interaction design decision: it must be executable under physical and cognitive stress without fine motor control or screen engagement, while remaining resistant to accidental activation during normal riding.
+
 
 ---
 
@@ -118,9 +119,9 @@ The device implements three LED rendering modes:
 
 An adaptive brightness algorithm dims the display at low speed to conserve battery — a power management decision that emerged from field testing in Prototype 2.
 
-![final enclosure mounted on handlebars](img/Tether.jpg) 
+![final enclosure mounted on handlebars)](img/Tether.jpg) 
 
-![system architecture diagram showing the three-layer flow (Phone → BLE → ESP32](img/diagram.png) 
+![system architecture diagram showing the three-layer flow (Phone → BLE → ESP32)](img/diagram.png) 
 
 The project GitHub repository is structured to complement rather than duplicate this report. The README covers: step-by-step hardware assembly with component wiring diagrams; ESP32 firmware flashing via Arduino IDE including all required library dependencies; Flutter application setup and deployment for both iOS and Android; and the full BLE characteristic table with UUID definitions, payload formats, and data direction. These reproducibility materials are intentionally kept separate from the analytical narrative of this report so that a reader can build and run Tether independently without reference to this document.
 
@@ -224,6 +225,7 @@ Brave, S. & Dahley, A. (1997) 'inTouch: a medium for haptic interpersonal commun
 
 Consolvo, S., Everitt, K., Smith, I. & Landay, J.A. (2006) 'Design requirements for technologies that encourage physical activity', in *Proceedings of CHI 2006*. New York: ACM, pp. 457–466.
 
+
 Dong, B., Shi, Q., Yang, Y., Wen, F., Zhang, Z. & Lee, C. (2021) 'Technology evolution from self-powered sensors to AIoT enabled smart homes', *Nano Energy*, 79, p. 105414.
 
 Gemperle, F., Kasabach, C., Stivoric, J., Bauer, M. & Martin, R. (1998) 'Design for wearability', in *Proceedings of the Second International Symposium on Wearable Computers*. New York: IEEE, pp. 116–122.
@@ -233,6 +235,7 @@ Mankoff, J., Dey, A.K., Hsieh, G., Kientz, J., Lederer, S. & Ames, M. (2003) 'He
 Norman, D.A. (2013) *The Design of Everyday Things*. Revised edn. New York: Basic Books.
 
 Pousman, Z. & Stasko, J. (2006) 'A taxonomy of ambient information systems: four patterns of design', in *Proceedings of AVI 2006*. New York: ACM, pp. 67–74.
+
 
 Strayer, D.L. & Drews, F.A. (2007) 'Cell-phone-induced driver distraction', *Current Directions in Psychological Science*, 16(3), pp. 128–131.
 
