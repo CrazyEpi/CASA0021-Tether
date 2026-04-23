@@ -1,13 +1,23 @@
 # CASA0021-Tether
-### Ride together. Stay aware. Stay safe.
+# Tether: Designing a Connected Cycling Companion for Motivation, Awareness and Safety
+
+## 1. Introduction
 
 ![_DSC6421](https://github.com/user-attachments/assets/64856135-aaba-4be1-903a-0eef8439fd08)
 
 
-Tether is a smart cycling companion system designed to bring **real-time awareness**, **social connection**, and **safety feedback** into the riding experience.  
-By combining a mobile app, Bluetooth Low Energy (BLE) communication, and a custom ESP32-based hardware interface, Tether transforms ride data into simple, glanceable signals that support cyclists on the move.
+Tether is a connected cycling companion consisting of a handlebar-mounted device and a mobile application. Rather than working only as a navigation tool, it is designed to support cycling through real-time ride awareness, goal tracking, social connection, and safety-oriented interaction.
+
+The project emerged from the observation that cyclists often need to manage several things at once: monitoring progress, staying aware of routes, comparing activity with friends, and responding to urgent situations. Smartphones can provide many of these functions, but they are not always suitable during cycling, as repeatedly checking a phone can be distracting and unsafe. Tether therefore explores how a cycling product can become part of the riding environment itself, offering simple and low-distraction support through a connected device and app system.
+
+This report outlines the problem addressed by the project, identifies its users and scenarios, places it in the context of Connected Environments research, and discusses the key features, limitations, and future directions of the prototype.
 
 ---
+
+## 2. Problem Identification and Motivation
+
+Mobile applications such as Strava enable widespread activity tracking and social sharing, but rely on screen-based interaction that requires sustained visual and manual attention. In mobility contexts such as cycling or walking, this creates safety concerns, as users must divert attention from their surroundings to engage with a high-attention interface, often on fragile and high-value devices. Physical movement further limits the feasibility of such interaction, making conventional mobile-centric approaches less suitable for real-time use. This highlights the need for ambient, low-attention alternatives that reduce cognitive and visual load while still supporting lightweight social connection during movement.
+
 
 ## ✦ Project Vision
 
