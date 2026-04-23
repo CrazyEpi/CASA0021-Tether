@@ -1,34 +1,42 @@
 # CASA0021-Tether
 # Tether: Designing a Connected Cycling Companion for Motivation, Awareness and Safety
 
+Group Members
+Gilang Pamungkas — Backend / System Integration
+Haoyu Hu — Hardware Development / Testing / Media
+Yidan Gao — Frontend Development
+Yifei Huang — 3D Design / Physical Enclosure
+
+GitHub Repository: https://github.com/CrazyEpi/CASA0021-Tether 
+
 ## 1. Introduction
 
 ![_DSC6421](https://github.com/user-attachments/assets/64856135-aaba-4be1-903a-0eef8439fd08)
 
 
-Tether is a connected cycling companion consisting of a handlebar-mounted device and a mobile application. Rather than working only as a navigation tool, it is designed to support cycling through real-time ride awareness, goal tracking, social connection, and safety-oriented interaction.
+Tether is a connected cycling system designed to support riders through a combination of a mobile application and a handlebar-mounted ambient device. The system provides real-time ride feedback, goal tracking, social comparison, and emergency communication in a way that reduces the need for continuous smartphone interaction during cycling.
 
-The project emerged from the observation that cyclists often need to manage several things at once: monitoring progress, staying aware of routes, comparing activity with friends, and responding to urgent situations. Smartphones can provide many of these functions, but they are not always suitable during cycling, as repeatedly checking a phone can be distracting and unsafe. Tether therefore explores how a cycling product can become part of the riding environment itself, offering simple and low-distraction support through a connected device and app system.
+Unlike traditional cycling applications that rely heavily on screen-based interaction, Tether shifts key information into an ambient physical interface mounted on the bicycle. This allows riders to remain aware of their performance and social context while maintaining focus on the riding environment.
 
-This report outlines the problem addressed by the project, identifies its users and scenarios, places it in the context of Connected Environments research, and discusses the key features, limitations, and future directions of the prototype.
+The system uses Bluetooth Low Energy (BLE) to synchronise data between the mobile app and the ESP32-based device, enabling real-time updates for speed, distance, friend progress, and system status.
 
 ---
 
-## 2. Problem Context and Motivation in Connected Mobility Environments
+## 2. Why is the project useful?
 
-Mobile technologies are increasingly embedded in everyday mobility practices such as walking and cycling, enabling large-scale activity tracking and social sharing through applications such as Strava. However, these systems rely on interaction models that assume sustained visual attention, which is often incompatible with the embodied and safety-critical nature of cycling. Riders must continuously allocate attention between movement, environmental awareness, and system interaction, creating cognitive load and potential safety risks.
+Mobile technologies have become central to cycling practice through applications such as Strava, enabling performance tracking, goal setting, and social comparison. However, these systems are designed around sustained visual and manual engagement with a smartphone, which conflicts with the embodied and attention-split nature of cycling, where users must simultaneously manage movement, environmental awareness, and system interaction.
 
-Existing cycling technologies adopt different approaches but remain fundamentally attention-dependent. Smartphone-based systems prioritise rich visual interfaces that require deliberate focus, interrupting situational awareness. Bike computers reduce reliance on mobile phones but still require frequent downward glances, reinforcing repeated attentional switching. Smartwatches provide more immediate access to information but still depend on wrist-based visual engagement and intentional interaction. Across these systems, the primary optimisation remains information accessibility rather than attentional continuity during motion.
+Alternative tools such as bike computers and smartwatches partially reduce phone dependence but retain similar limitations. Bike computers require repeated visual diversion from the road, while smartwatches constrain interaction to small displays that still demand focused attention. Across these systems, the dominant design priority remains information richness rather than attentional safety, creating a structural mismatch with in-motion activity.
 
-As a result, current cycling interfaces predominantly support navigation and performance tracking, while underrepresenting social and affective dimensions such as reassurance, shared progress, and lightweight communication. This reflects a functional rather than experience-oriented framing of cycling interaction. Within Connected Environments research, which explores how computational systems are embedded into everyday contexts to connect people, devices, and environments through real-time interaction, this reveals a persistent limitation. Despite advances informed by ubiquitous computing principles (Weiser, 1991), many systems remain device-centred and poorly suited to continuous mobility contexts.
+Tether addresses this limitation by shifting interaction from screen-based engagement to ambient, handlebar-mounted feedback. Instead of requiring active attention, ride data is externalised into peripheral visual cues, allowing cyclists to maintain situational awareness while still receiving meaningful feedback. This reduces cognitive switching between environment and interface, supporting safer in-motion interaction.
 
-Within this framing, Tether addresses the limitations of attention-heavy, screen-based interaction by introducing an ambient, bicycle-mounted system that reduces direct device engagement while maintaining lightweight social connectivity. It positions cycling interaction as a connected system linking rider, bicycle, application, and social context in a unified, low-attention experience.
+Beyond functional limitations, existing systems also underrepresent the social and affective dimensions of cycling. Riders often seek lightweight forms of connection, progress comparison, and reassurance during activity, yet these are typically secondary to performance tracking.
+
+Tether reframes cycling interaction by integrating awareness, motivation, safety, and social connection into a unified ambient system. This aligns with Connected Environments research and ubiquitous computing principles (Weiser, 1991), which advocate for systems that operate seamlessly within everyday activity rather than demanding attention.
 
 ### Problem Statement
 
-Current cycling interfaces do not provide a unified interaction approach that balances awareness, safety, motivation, and social connection within the constraints of real-world cycling. Existing systems remain dependent on attention-intensive interaction models, including smartphone-based applications such as Strava, creating a mismatch with the cognitive and perceptual demands of continuous physical movement. As a result, cyclists must repeatedly shift attention away from their environment to access information, introducing unnecessary cognitive load and reducing safety.
-
-Furthermore, existing solutions insufficiently address the social and affective dimensions of cycling, such as reassurance, shared progress, and lightweight communication. This reveals a broader limitation in current design approaches, where cycling is treated primarily as a performance-tracking activity rather than a socially situated and contextually embedded experience.
+Current cycling technologies rely on attention-heavy interaction models that assume sustained visual engagement, which is incompatible with the cognitive and physical demands of cycling. Existing systems prioritise performance tracking and screen-based interaction but fail to support low-attention awareness, situational safety, and lightweight social connection during motion, resulting in increased cognitive load and a disconnect between digital systems and embodied activity.
 
 
 ### Target Users and Scenarios
