@@ -18,9 +18,9 @@ This report documents the problem context and motivation underpinning Tether, th
 
 ## 2. Problem Context and Research Question
 
-The proliferation of consumer cycling technology — principally smartphone applications such as Strava and Komoot — has significantly expanded access to ride tracking, route planning, and social comparison. However, these systems are designed around a screen-interaction paradigm that assumes sedentary or low-demand contexts. Cycling imposes simultaneous demands on motor control, environmental awareness, and spatial navigation, making sustained visual engagement with a handheld device both cognitively costly and physically hazardous (Strayer & Drews, 2007).
+he proliferation of consumer cycling technology — principally smartphone applications such as Strava and Komoot — has significantly expanded access to ride tracking, route planning, and social comparison. However, these systems are designed around a screen-interaction paradigm that assumes sedentary or low-demand contexts. Cycling imposes simultaneous demands on motor control, environmental awareness, and spatial navigation, making sustained visual engagement with a handheld device both cognitively costly and physically hazardous (Strayer & Drews, 2007).
 
-Alternative hardware — dedicated cycling computers and smartwatches — partially mitigate smartphone dependency but replicate the same design assumption: that information density and direct visual engagement are primary values. Garmin and Wahoo devices, for instance, display rich data fields requiring deliberate focused reading, which interrupts the attentional flow of riding (Roto & Väänänen-Vainio-Mattila, 2008). This represents what Norman (2013) describes as a mismatch between the system's interaction model and the user's cognitive and physical context.
+Alternative hardware — dedicated cycling computers and smartwatches — partially mitigate smartphone dependency but replicate the same design assumption: that information density and direct visual engagement are primary values. Garmin and Wahoo devices, for instance, display rich data fields requiring deliberate focused reading, which interrupts the attentional flow of riding . This represents what Norman (2013) describes as a mismatch between the system's interaction model and the user's cognitive and physical context.
 
 Beyond functional limitations, the social dimension of cycling is systematically underdeveloped in current platforms. Strava's social features are predominantly retrospective — kudos, segment comparisons, and activity feeds are experienced after the ride, not during it. This forecloses a class of motivational and affective interaction that could meaningfully support riders during the ride itself: awareness of a friend's concurrent progress, lightweight social presence, and shared goal pursuit (Consolvo et al., 2006).
 
@@ -29,6 +29,7 @@ Tether is situated within the research tradition of ubiquitous computing (Weiser
 No existing consumer product or research prototype addresses this combination simultaneously. Ambient cycling displays such as Beeline prioritise navigation over social feedback; social platforms such as Strava are retrospective and screen-dependent; and safety-focused wearables do not integrate ride awareness or motivation. This tripartite gap — ambient feedback, concurrent social presence, and physical emergency signalling — defines the design space that Tether occupies.
 
 The central research question is therefore: **how can a connected cycling system support real-time ride awareness, social motivation, and emergency signalling while minimising attentional disruption?** Tether operationalises this question through the integration of ambient LED feedback, a glanceable AMOLED display, and a Bluetooth Low Energy (BLE) communication layer between a handlebar-mounted device and a companion mobile application.
+
 
 ---
 
@@ -40,7 +41,7 @@ Three core scenarios structured the design process, each grounded in an identifi
 
 - **Individual riding:** A commuter pairs the Tether device via BLE and sets a daily distance goal; the LED ring fills progressively as the goal is approached, providing a continuous but non-intrusive cue. This scenario responds to evidence that goal-visibility during activity — rather than post-hoc review — is the primary driver of sustained behaviour change (Consolvo et al., 2006).
 - **Shared riding:** Two friends start a ride simultaneously; the split-ring mode divides the LED ring into two arcs — blue for the rider's own progress, purple for their friend's — enabling immediate social comparison without any screen interaction. The motivational basis for this mode draws on social facilitation research showing that awareness of a peer's concurrent effort increases individual performance output (Brave & Dahley, 1997).
-- **Emergency context:** A rider in difficulty performs a three-second physical hold on the device button, triggering an SOS alert that is routed via BLE to the mobile application and onwards to the cloud, notifying contacts without requiring the rider to locate or unlock their phone. This scenario addresses a gap identified by Demiris et al. (2008) in safety-critical wearables: that emergency triggers must be physically operable under stress, without requiring fine motor control or screen interaction.
+- **Emergency context:** A rider in difficulty performs a three-second physical hold on the device button, triggering an SOS alert that is routed via BLE to the mobile application and onwards to the cloud, notifying contacts without requiring the rider to locate or unlock their phone. The three-second hold is a deliberate interaction design decision: it must be executable under physical and cognitive stress without fine motor control or screen engagement, while remaining resistant to accidental activation during normal riding.
 
 ---
 
@@ -133,7 +134,7 @@ The LED ring as an ambient display aligns with the ambient information systems l
 
 The social comparison layer connects to research on persuasive technology and social fitness motivation. Consolvo et al. (2006) demonstrated that real-time awareness of peers' activity significantly increased physical activity in field trials. Tether's split-ring friend mode applies this principle specifically to concurrent cycling, where the motivational effect of social comparison is most immediate. The shared-ride synchronisation via Firebase extends this into a form of lightweight social presence (Brave & Dahley, 1997), where two physically separated riders maintain awareness of each other's progress without communication overhead.
 
-The SOS functionality situates Tether within emerging research on safety-critical wearables and IoT emergency systems (Demiris et al., 2008). The three-second physical hold pattern balances accidental trigger prevention against speed of activation — a deliberate interaction design trade-off informed by established guidelines for physical emergency controls.
+The SOS functionality situates Tether within emerging research on safety-critical wearables and IoT emergency systems. The three-second physical hold pattern balances accidental trigger prevention against speed of activation — a deliberate interaction design decision that prioritises operability under stress over interaction efficiency.
 
 ---
 
@@ -223,8 +224,6 @@ Brave, S. & Dahley, A. (1997) 'inTouch: a medium for haptic interpersonal commun
 
 Consolvo, S., Everitt, K., Smith, I. & Landay, J.A. (2006) 'Design requirements for technologies that encourage physical activity', in *Proceedings of CHI 2006*. New York: ACM, pp. 457–466.
 
-Demiris, G. et al. (2008) 'Older adults' attitudes towards and perceptions of smart home technologies: a pilot study', *Informatics for Health and Social Care*, 29(2), pp. 87–94.
-
 Dong, B., Shi, Q., Yang, Y., Wen, F., Zhang, Z. & Lee, C. (2021) 'Technology evolution from self-powered sensors to AIoT enabled smart homes', *Nano Energy*, 79, p. 105414.
 
 Gemperle, F., Kasabach, C., Stivoric, J., Bauer, M. & Martin, R. (1998) 'Design for wearability', in *Proceedings of the Second International Symposium on Wearable Computers*. New York: IEEE, pp. 116–122.
@@ -234,8 +233,6 @@ Mankoff, J., Dey, A.K., Hsieh, G., Kientz, J., Lederer, S. & Ames, M. (2003) 'He
 Norman, D.A. (2013) *The Design of Everyday Things*. Revised edn. New York: Basic Books.
 
 Pousman, Z. & Stasko, J. (2006) 'A taxonomy of ambient information systems: four patterns of design', in *Proceedings of AVI 2006*. New York: ACM, pp. 67–74.
-
-Roto, V. & Väänänen-Vainio-Mattila, K. (2008) 'User experience of mobile applications', in *Workshop at MobileHCI 2008*.
 
 Strayer, D.L. & Drews, F.A. (2007) 'Cell-phone-induced driver distraction', *Current Directions in Psychological Science*, 16(3), pp. 128–131.
 
