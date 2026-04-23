@@ -7,52 +7,64 @@
 ![_DSC6421](https://github.com/user-attachments/assets/64856135-aaba-4be1-903a-0eef8439fd08)
 
 
-Tether is a connected cycling system designed to support riders through a combination of a mobile application and a handlebar-mounted ambient device. The system provides real-time ride feedback, goal tracking, social comparison, and emergency communication in a way that reduces the need for continuous smartphone interaction during cycling.
+Tether is a connected cycling system composed of a mobile application and a handlebar-mounted ambient device. It is designed to support real-time ride awareness, goal tracking, lightweight social interaction, and emergency communication while reducing reliance on continuous smartphone engagement during cycling.
 
-Unlike traditional cycling applications that rely heavily on screen-based interaction, Tether shifts key information into an ambient physical interface mounted on the bicycle. This allows riders to remain aware of their performance and social context while maintaining focus on the riding environment.
+Unlike conventional cycling applications that depend on screen-based interaction, Tether externalises key information into a bicycle-mounted ambient interface. This enables riders to maintain situational awareness of both performance and environment without interrupting physical activity.
 
-The system uses Bluetooth Low Energy (BLE) to synchronise data between the mobile app and the ESP32-based device, enabling real-time updates for speed, distance, friend progress, and system status.
+The system uses Bluetooth Low Energy (BLE) to synchronise data between the mobile application and an ESP32-based device, enabling real-time updates of speed, distance, social comparison, and system state.
 
 ---
 
-## 2. Why is the project useful?
+## 2.Problem Context and Motivation
 
-Mobile technologies have become central to cycling practice through applications such as Strava, enabling performance tracking, goal setting, and social comparison. However, these systems are designed around sustained visual and manual engagement with a smartphone, which conflicts with the embodied and attention-split nature of cycling, where users must simultaneously manage movement, environmental awareness, and system interaction.
+Mobile technologies are widely integrated into cycling practices through applications such as Strava, enabling performance tracking, goal setting, and social comparison. However, these systems rely on sustained visual and manual engagement with a smartphone interface, which is incompatible with the distributed attentional demands of cycling. Riders must simultaneously manage movement, balance, and environmental awareness, making continuous device interaction cognitively and physically demanding.
 
-Alternative tools such as bike computers and smartwatches partially reduce phone dependence but retain similar limitations. Bike computers require repeated visual diversion from the road, while smartwatches constrain interaction to small displays that still demand focused attention. Across these systems, the dominant design priority remains information richness rather than attentional safety, creating a structural mismatch with in-motion activity.
+Alternative devices such as bike computers and smartwatches reduce smartphone dependency but retain similar limitations. Bike computers require repeated visual diversion from the road, while smartwatches constrain interaction to small displays that still demand focused attention. Across these systems, the dominant design priority remains information density rather than attentional compatibility with motion.
 
-Tether addresses this limitation by shifting interaction from screen-based engagement to ambient, handlebar-mounted feedback. Instead of requiring active attention, ride data is externalised into peripheral visual cues, allowing cyclists to maintain situational awareness while still receiving meaningful feedback. This reduces cognitive switching between environment and interface, supporting safer in-motion interaction.
+This creates a structural mismatch between interface design and the embodied nature of cycling, increasing cognitive load and reducing situational awareness. Beyond functional limitations, existing systems also underrepresent social and affective dimensions of cycling. Riders often engage in cycling as a shared activity, yet current platforms prioritise performance tracking over lightweight communication, reassurance, and social presence.
 
-Beyond functional limitations, existing systems also underrepresent the social and affective dimensions of cycling. Riders often seek lightweight forms of connection, progress comparison, and reassurance during activity, yet these are typically secondary to performance tracking.
+Tether is situated within Connected Environments research, which explores how computational systems are embedded into everyday physical contexts. In line with ubiquitous computing principles (Weiser, 1991), this field emphasises reducing interactional friction and enabling systems to operate seamlessly within daily activity rather than demanding focused attention.
 
-Tether reframes cycling interaction by integrating awareness, motivation, safety, and social connection into a unified ambient system. This aligns with Connected Environments research and ubiquitous computing principles (Weiser, 1991), which advocate for systems that operate seamlessly within everyday activity rather than demanding attention.
+### 3.Problem Statement
 
-### Problem Statement
+Current cycling technologies rely on attention-intensive interaction models that assume sustained visual engagement, which is incompatible with the cognitive and physical demands of cycling. Existing systems prioritise performance tracking and screen-based interaction, but fail to support low-attention awareness, situational safety, and lightweight social connection during motion. This results in increased cognitive load and a disconnect between digital systems and embodied cycling activity.
 
-Current cycling technologies rely on attention-heavy interaction models that assume sustained visual engagement, which is incompatible with the cognitive and physical demands of cycling. Existing systems prioritise performance tracking and screen-based interaction but fail to support low-attention awareness, situational safety, and lightweight social connection during motion, resulting in increased cognitive load and a disconnect between digital systems and embodied activity.
+### 4.System Overview
+
+Tether integrates a mobile application with a handlebar-mounted ESP32-based ambient device to create a low-attention cycling interface.
+
+The mobile application acts as the system’s data and control layer, processing GPS input, computing ride metrics, and managing social comparison data. Bluetooth Low Energy (BLE) is used to transmit structured data packets to the physical device in real time.
+
+The ESP32 device functions as the primary feedback interface, using an AMOLED display and LED ring to present ride information through peripheral visual cues. It displays speed, distance, friend progress, system state, and alerts without requiring direct smartphone interaction.
+
+The system is structured around three core interaction dimensions:
+
+**Ride awareness**: continuous, glanceable feedback on performance and progress
+**Social connection**: lightweight comparison of ride progress between users
+**Safety signalling**: immediate SOS alert functionality via device-triggered communication
+
+This design shifts interaction away from attention-heavy screen use toward ambient, in-motion feedback embedded within the cycling environment.
 
 
-### Target Users and Scenarios
+### 5. Target Users and Scenarios
 
-Tether is aimed at everyday cyclists, especially:
-- commuters who need quick ride information,
-- recreational riders who want visual motivation,
-- friends who want to compare progress,
-- and riders who may need a more visible emergency communication system.
+Tether is designed for everyday cyclists who require real-time feedback without disrupting riding focus. Primary user groups include commuters, recreational riders, socially connected cyclists, and users requiring emergency signalling capability.
 
-The main user scenarios are:
-1. **Individual riding**, where the rider sets a distance goal and tracks progress during the ride.
-2. **Shared riding**, where two riders compare progress in real time even when cycling separately.
-3. **Emergency situations**, where one rider can send an alert directly from the device.
+Key scenarios include:
 
-### Project Objectives
+**Individual riding**: tracking distance goals and real-time performance
+**Shared riding**: comparing progress between riders in real time
+**Emergency context**: triggering immediate alerts through the device
 
-The main objectives of Tether were:
-- to reduce dependence on the smartphone during cycling,
-- to provide low-distraction ride feedback,
-- to support motivation through visible goal progress,
-- to strengthen social connection between riders,
-- and to create a more immediate emergency alert mechanism.
+### 6. Project Objectives
+
+The project aims to:
+
+reduce reliance on smartphones during cycling activity
+minimise attentional disruption through ambient feedback
+support motivation via visible progress tracking
+enhance lightweight social connectivity between riders
+enable rapid emergency signalling through physical interaction
 
 ---
 
