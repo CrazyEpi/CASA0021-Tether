@@ -4,7 +4,7 @@
 **Group:** Four Gods (Group 4)  
 **Members:** Gilang Pamungkas · Haoyu Hu · Yidan Gao · Yifei Huang  
 **GitHub Repository:** https://github.com/CrazyEpi/CASA0021-Tether  
-**Institution:** MSc Connected Environments, UCL Bartlett Centre for Advanced Spatial Analysis, 2025–26
+MSc Connected Environments, UCL Bartlett Centre for Advanced Spatial Analysis, 2025–26
 
 ---
 
