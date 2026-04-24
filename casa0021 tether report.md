@@ -85,7 +85,7 @@ The unidirectional notify pattern for SOS — where the ESP32 pushes to the app 
 
 ### 4.4 Mobile Application Development
 
-The companion application was built in Flutter, enabling a single codebase for iOS and Android. It integrates three live data sources during a ride: phone GPS, BLE hardware telemetry, and real-time friend position data from Firebase Firestore (europe-west2 region). Firebase was chosen over a custom backend for its real-time synchronisation — Firestore's `onSnapshot` listener propagates a friend's updated distance to both the app and the handlebar device within seconds. Eight fully functional screens cover the full ride lifecycle from route planning through post-ride social feed.
+The companion application was built in Flutter, enabling a single codebase for iOS and Android. It integrates three live data sources during a ride: phone GPS, BLE hardware telemetry, and real-time friend position data from Firebase Firestore (europe-west2 region). Firebase was chosen over a custom backend for its real-time synchronisation — Firestore's onSnapshot listener propagates a friend's updated distance to both the app and the handlebar device within seconds. Eight fully functional screens cover the full ride lifecycle from route planning through post-ride social feed.
 
 ### 4.5 Field Testing and Execution
 
@@ -134,9 +134,7 @@ The SOS functionality situates Tether within emerging research on safety-critica
 
 ---
 
-## 7. Production Costs and Sustainability
-
-### 7.1 Component Costs
+## 7. Production Costs
 
 The current prototype's direct component cost is **£64.30 per unit**:
 
@@ -157,10 +155,6 @@ The suggested retail price of **£149** positions Tether competitively against t
 - **Year 1 target:** 1,200 units
 - **Year 3 net profit:** ~£367,400 (at 7,000 units)
 - **Subscription tier:** £5/month for premium social features
-
-### 7.2 Sustainability Considerations
-
-Several design decisions improve Tether's sustainability profile. BLE reduces device power consumption relative to WiFi or cellular, and offloading GPS to the phone eliminates a second chipset, reducing manufacturing complexity and electronic waste. The PLA enclosure is biodegradable under industrial composting conditions, though the current design's lack of modular disassembly limits component recovery at end of life — a production version would allow the ESP32 and LED ring to be replaced independently. The LiPo battery carries the greatest environmental impact; a production version would partner with certified e-waste processors and offer a battery replacement programme. Firebase's cloud infrastructure runs on Google data centres committed to 24/7 carbon-free energy by 2030.
 
 ---
 
@@ -183,15 +177,13 @@ Tether's competitive edge lies in its social and safety differentiation within t
 
 ## 9. Future Work
 
-Given additional time and resources, Tether would be developed along four vectors. First, hardware independence: integrating a low-power GPS chipset and e-SIM cellular module would enable standalone operation, allowing SOS alerts even beyond BLE range, alongside an IP65-rated enclosure meeting handlebar vibration standards. Second, energy autonomy: the 900mAh battery limits ride duration to approximately three hours; a 2,000–3,000mAh cell with solar-assisted top-up via a thin-film panel, drawing on energy harvesting approaches in self-powered IoT sensor research (Dong et al., 2021), would address this. Third, expanded social features: a group ride mode for up to five riders, with segment-based LED allocation per rider, and Strava API integration for importing existing social graphs. Fourth, safety expansion: automatic crash detection via the ESP32 accelerometer, with a 10-second cancellation window to prevent false positives, and integration with emergency services APIs subject to regulatory review.
+Given additional time and resources, two development directions stand out as most impactful. The first is hardware independence. The current architecture's reliance on a paired phone for GPS and cloud connectivity is a deliberate simplification that limits standalone operation — if the phone battery dies or BLE range is exceeded, SOS alerts cannot be sent. This would require redesigning the power management layer to budget for the additional draw, and the enclosure would be upgraded to IP65 weather resistance with a gasket-sealed lid to meet outdoor cycling conditions. The second priority is automatic crash detection. The ESP32-S3 already carries a QMI8658 six-axis IMU; extending the firmware to monitor for impact signatures — a sudden high-g spike followed by near-zero motion — would enable automatic SOS triggering with a 10-second on-device cancellation window to prevent false positives.
 
 ---
 
 ## 10. Conclusion
 
-Tether demonstrates a viable, principled approach to the challenge of ambient information delivery in high-demand physical activity contexts. By grounding the design in ubiquitous computing theory and calm technology principles, and by iterating through three hardware prototypes and four enclosure revisions, the project has produced a functional connected cycling system that meaningfully reduces smartphone dependency while introducing novel social and safety capabilities not present in existing commercial devices.
-
-The system goes beyond module scope by integrating real-time cloud synchronisation, a production-grade Flutter application, custom BLE firmware, and a viable commercial model with quantified projections. Current limitations in battery life, weather resistance, and enclosure fit are acknowledged but represent engineering refinements rather than fundamental design flaws, and the core architectural decisions — ambient feedback, phone-as-gateway, BLE safety signalling — are validated by the prototype.
+Tether demonstrates a principled approach to ambient information delivery in high-demand physical activity contexts. Grounded in ubiquitous computing and calm technology theory, and validated through three hardware prototypes, four enclosure revisions, and real-world ride testing, the system meaningfully reduces smartphone dependency while introducing social and safety capabilities absent from existing commercial devices. The commercial model, sustainability analysis, and competitor benchmarking go beyond the immediate module scope. Current limitations in battery life, enclosure sealing, and weather resistance are engineering refinements rather than fundamental design flaws, and the core architecture — ambient feedback, phone-as-gateway, BLE safety signalling — provides a sound foundation for continued development.
 
 ---
 
@@ -200,9 +192,6 @@ The system goes beyond module scope by integrating real-time cloud synchronisati
 Brave, S. & Dahley, A. (1997) 'inTouch: a medium for haptic interpersonal communication', in *CHI '97 Extended Abstracts*. New York: ACM, pp. 363–364.
 
 Consolvo, S., Everitt, K., Smith, I. & Landay, J.A. (2006) 'Design requirements for technologies that encourage physical activity', in *Proceedings of CHI 2006*. New York: ACM, pp. 457–466.
-
-
-Dong, B., Shi, Q., Yang, Y., Wen, F., Zhang, Z. & Lee, C. (2021) 'Technology evolution from self-powered sensors to AIoT enabled smart homes', *Nano Energy*, 79, p. 105414.
 
 Gemperle, F., Kasabach, C., Stivoric, J., Bauer, M. & Martin, R. (1998) 'Design for wearability', in *Proceedings of the Second International Symposium on Wearable Computers*. New York: IEEE, pp. 116–122.
 
