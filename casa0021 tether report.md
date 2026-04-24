@@ -87,6 +87,10 @@ The unidirectional notify pattern for SOS — where the ESP32 pushes to the app 
 
 The companion application was built in Flutter, enabling a single codebase for iOS and Android. It integrates three live data sources during a ride: phone GPS, BLE hardware telemetry, and real-time friend position data from Firebase Firestore (europe-west2 region). Firebase was chosen over a custom backend for its real-time synchronisation — Firestore's `onSnapshot` listener propagates a friend's updated distance to both the app and the handlebar device within seconds. Eight fully functional screens cover the full ride lifecycle from route planning through post-ride social feed.
 
+### 4.5 Field Testing and Execution
+
+Each prototype was driven by real-world riding findings. Prototype 1 could not be field tested due to the absence of battery power. Prototype 2 revealed three execution failures: GPS drift of up to 15–20 metres in urban canyons; battery range anxiety beyond 45 minutes; and display rotation under handlebar vibration, resolved by the screen locker in enclosure revision 3. The current prototype resolved positional accuracy by offloading GPS to the phone, and BLE connection remained stable across all test rides. Remaining weaknesses are LED light bleed in direct sunlight — persistent despite the addition of a diffuser cover, whose fit remains insufficiently tight — and enclosure sealing, both identified as next-cycle priorities.
+
 ---
 
 ## 5. System Architecture Overview
