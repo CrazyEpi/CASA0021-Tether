@@ -193,7 +193,7 @@ Tether demonstrates a principled approach to ambient information delivery in hig
 
 ---
 
-## 11. References
+## 11. Reference List
 
 Brave, S. & Dahley, A. (1997) 'inTouch: a medium for haptic interpersonal communication', in *CHI '97 Extended Abstracts*. New York: ACM, pp. 363–364.
 
