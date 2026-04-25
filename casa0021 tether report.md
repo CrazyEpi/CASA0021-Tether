@@ -50,9 +50,9 @@ Three core scenarios structured the design process:
 
 The hardware component underwent three distinct prototype iterations, each resolving limitations identified through physical testing and user observation.
 
-**Prototype 1 — MVP**
+**Prototype 1**
 
-The initial prototype used an Arduino MKR 1010 WiFi board paired with a NeoPixel LED strip and an LC76G GPS module. This configuration was sufficient to validate the core concept — that LED-based ambient feedback could communicate ride progress meaningfully — but revealed two critical limitations. The form factor was too large for practical handlebar mounting, and the absence of battery power made field testing impossible. The reliance on WiFi rather than BLE also introduced latency and power inefficiency inappropriate for a real-time cycling interface.
+The first prototype was built with an Arduino MKR 1010 WiFi board, a NeoPixel LED strip, and an LC76G GPS module. Its main purpose was to verify the core concept: that GPS data could be translated into visual LED feedback. This prototype successfully demonstrated the basic interaction logic of the system. However, it was assembled on a breadboard with Dupont connectors, making it too fragile and bulky for outdoor cycling. In addition, the use of WiFi introduced unnecessary power consumption and latency, while GPS drift created errors of around 1.5 metres.
 
 **Prototype 2**
 
@@ -61,6 +61,10 @@ The second iteration migrated to an ESP32-S3 paired with a 1.75-inch AMOLED disp
 **Current Prototype**
 
 The final hardware design addressed both residual issues. GPS computation and drift correction was fully offloaded to the mobile phone, which acts as the GPS and cloud gateway — a significant architectural decision that simplified the embedded firmware, reduced device power consumption, and improved positional accuracy by leveraging the phone's more powerful GPS chipset and drift-correction algorithms. The device battery was upgraded to a 900mAh LiPo, and the entire assembly was housed in a custom 3D-printed enclosure designed for handlebar mounting.
+
+**How it Works**
+The hardware execution logic is designed to be efficient and minimalist. Instead of doing heavy calculations, the ESP32-S3 acts as a smart display terminal. First, it establishes a Bluetooth Low Energy (BLE) connection with the user's smartphone. Every second, the phone sends processed data pack to the device. Once the data is received, the program will refresh its screen, and simultaneously, it will control the 24-LED NeoPixel ring. In single mode, the ring lights up in blue to show your goal progress. In friend mode, the ring splits into two colors, allowing you to easily compare progress with your friend. Furthermore, the program includes a safety feature. If the rider long-presses the emergency button, the device will enter the SOS mode. The screen will blink red and send SOS message to your partners. Moreover, to save battery, the code will automatically dim the screen when the speed drops.
+
 
 ### 4.2 Enclosure Design Iterations
 
